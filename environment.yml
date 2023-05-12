@@ -1,0 +1,25 @@
+name: digpat
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip
+
+  # Logging
+  - loguru
+  # Jupyter Notebook
+  - ipykernel
+  - ipywidgets
+  # Data analysis
+  - scikit-learn
+  # Data handling
+  - numpy
+  - torchinfo
+  # Pip installationen
+  - pip:
+    # Data handling
+    - pandas
+    # Data analysis
+    - pandas-profiling
+    - split-folders
