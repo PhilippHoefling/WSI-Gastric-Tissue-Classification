@@ -25,7 +25,7 @@ def create_dataloaders(train_dir: str,
                        val_dir: str,
                        transform: transforms.Compose,
                        batch_size: int,
-                       num_workers: int = 1
+                       num_workers: int = 4
                        ):
     '''
     Create train and validation data loaders from Image folders
@@ -104,6 +104,8 @@ def store_hyperparameters(target_dir_new_model: str, model_name: str, dict: dict
     with open(dict_path, "wb") as filestore:
         pickle.dump(dict, filestore)
     return folderpath
+
+
 
 def store_model(target_dir_new_model: str, tf_model: bool, model_name: str, hyperparameter_dict: dict,
                 trained_epochs: int, classifier_model: torch.nn.Module, results: dict, batch_size: int,
