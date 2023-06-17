@@ -277,3 +277,19 @@ def val_step(model: torch.nn.Module,
     val_acc = val_acc / len(dataloader)
     return val_loss, val_acc
 
+def main():
+    model = torchvision.models.resnet50()
+    model.fc = torch.nn.Sequential(
+    torch.nn.Linear(
+        in_features=2048,
+        out_features=3
+    ),
+    torch.nn.Sigmoid()
+    )
+
+    criterion = nn.CrossEntropyLoss()
+
+    optimizer = torch.optim.Adam(model.parameters())
+
+    model_ft = train_model(model, criterion, optimizer, exp_lr_scheduler,
+                       num_epochs=25)

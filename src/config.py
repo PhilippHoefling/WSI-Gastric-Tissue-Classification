@@ -6,4 +6,5 @@ config_hyperparameter = {
     "patience": 4,
     "epochs": 100,
     "num_workers": 4,
+    "trainable_layers": 3
 }
