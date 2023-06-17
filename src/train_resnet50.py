@@ -109,10 +109,11 @@ def store_hyperparameters(target_dir_new_model: str, model_name: str, dict: dict
 
 def store_model(target_dir_new_model: str, tf_model: bool, model_name: str, hyperparameter_dict: dict,
                 trained_epochs: int, classifier_model: torch.nn.Module, results: dict, batch_size: int,
-                total_train_time: float, timestampStr: str, used_combination: int):
+                total_train_time: float, timestampStr: str):
     '''
     Store all files related to the model in the model directory. (Hyperparameters, model summary, figures, and results)
-    It also creates or updates a csv-file where all training informations, the model path, and the used hyperparameters are stored
+    It also creates or updates a csv-file where all training informations, the model path, and the used hyperparameters
+    are stored
     return: Directory of the new model
     '''
 
@@ -144,10 +145,6 @@ def store_model(target_dir_new_model: str, tf_model: bool, model_name: str, hype
     df["model_type"] = [model_name]
     df["model_path"] = [folderpath]
     df["pretrained"] = [tf_model]
-    if used_combination == -1:
-        pass
-    else:
-        df["used_dataaugmention_combination"] = ["comb_"+str(used_combination)]
     df["epochs"] = [hyperparameter_dict["epochs"]]
     df["seed"] = [hyperparameter_dict["seed"]]
     df["learning_rate"] = [hyperparameter_dict["learning_rate"]]

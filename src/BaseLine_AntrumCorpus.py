@@ -12,13 +12,17 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from loguru import logger
 import splitfolders
+from timeit import default_timer as timer
+from datetime import datetime
+from tqdm.auto import tqdm
+import time
 import random
 # import skimage
 from skimage.io import imread
-
+from typing import Dict, List, Tuple
 from sklearn.model_selection import train
 import torchvision
-from torch import nn_test_split
+from torch import nn
 from sklearn.metrics import accuracy_score
 
 from torchvision.models.resnet import Bottleneck, ResNet
@@ -106,8 +110,27 @@ def split(original_dataset_dir: str,seed: int):
         dst = 'data_combined'
         splitfolders.ratio(src, output=dst, seed=seed, ratio=(0.8, 0.2))
 
-    rgba_to_rgb()
+def load_pretrained_model(device, tf_model: bool):
+    '''
+    Load the pretrainind EfficientNet_V2_S pytorch model with or without weights
+    return: model and the pretrained weights
+    '''
 
+    # Load best available weights from pretraining on ImageNet1K dataset
+    weights = torchvision.models.EfficientNet_V2_S_Weights.DEFAULT
+
+    # Load pretrained model with or without weights
+    if tf_model:
+        model = torchvision.models.efficientnet_v2_s(weights)
+    else:
+        model = torchvision.models.efficientnet_v2_s()
+
+    # Speed up training
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
+    model.to(device)
+
+    return model, weights
 def train_new_model(dataset_path: str, tf_model: bool, activate_augmentation: bool):
     '''
     Initializes the directories of the dataset, stores the selected model type, chooses the availabe device, initialize the model,
@@ -148,13 +171,13 @@ def train_new_model(dataset_path: str, tf_model: bool, activate_augmentation: bo
                                                                               )
 
                     # Recreate classifier layer
-                    model = recreate_classifier_layer(model=model,
-                                                      tf_model=tf_model,
-                                                      dropout=cfg_hp["dropout"][d],
-                                                      class_names=class_names,
-                                                      seed=cfg_hp["seed"][s],
-                                                      device=device
-                                                      )
+                    #model = recreate_classifier_layer(model=model,
+                    #                                  tf_model=tf_model,
+                    #                                  dropout=cfg_hp["dropout"][d],
+                    #                                  class_names=class_names,
+                    #                                  seed=cfg_hp["seed"][s],
+                    #                                  device=device
+                    #                                  )
 
                     # Define loss and optimizer
                     loss_fn = nn.CrossEntropyLoss()
@@ -265,7 +288,7 @@ def train(target_dir_new_model: str,
             time.sleep(10)
             total_train_time = end_time - start_time
             model_folder = store_model(target_dir_new_model, tf_model, model_name, hyperparameter_dict, trained_epochs,
-                                       model, results, batch_size, total_train_time, timestampStr,used_combination)
+                                       model, results, batch_size, total_train_time, timestampStr)
 
             early_stopping = 0
 
@@ -325,7 +348,87 @@ def train_step(model: torch.nn.Module,
     train_acc = train_acc / len(dataloader)
     return train_loss, train_acc
 
+def store_model(target_dir_new_model: str, tf_model: bool, model_name: str, hyperparameter_dict: dict,
+                trained_epochs: int, classifier_model: torch.nn.Module, results: dict, batch_size: int,
+                total_train_time: float, timestampStr: str):
+    '''
+    Store all files related to the model in the model directory. (Hyperparameters, model summary, figures, and results)
+    It also creates or updates a csv-file where all training informations, the model path, and the used hyperparameters are stored
+    return: Directory of the new model
+    '''
 
+    logger.info("Store model, results and hyperparameters...")
+
+    folderpath = store_hyperparameters(target_dir_new_model, model_name, hyperparameter_dict, timestampStr)
+    model_path = folderpath / ("model.pkl")
+    results_path = folderpath / ("results.pkl")
+    summary_path = folderpath / ("summary.pkl")
+
+    model_summary = summary(model=classifier_model,
+                            input_size=(batch_size, 3, 224, 224),  # make sure this is "input_size", not "input_shape"
+                            col_names=["input_size", "output_size", "num_params", "trainable"],
+                            col_width=20,
+                            row_settings=["var_names"],
+                            verbose=0
+                            )
+
+    with open(summary_path, "wb") as filestore:
+        pickle.dump(model_summary, filestore)
+
+    with open(model_path, "wb") as filestore:
+        pickle.dump(classifier_model, filestore)
+
+    with open(results_path, "wb") as filestore:
+        pickle.dump(results, filestore)
+
+    df = pd.DataFrame()
+    df["model_type"] = [model_name]
+    df["model_path"] = [folderpath]
+    df["pretrained"] = [tf_model]
+    df["epochs"] = [hyperparameter_dict["epochs"]]
+    df["seed"] = [hyperparameter_dict["seed"]]
+    df["learning_rate"] = [hyperparameter_dict["learning_rate"]]
+    df["dropout"] = [hyperparameter_dict["dropout"]]
+    df["batch_size"] = [hyperparameter_dict["batch_size"]]
+    df["num_workers"] = [hyperparameter_dict["num_workers"]]
+    df["total_train_time"] = [total_train_time / 60]
+    df["trained_epochs"] = [trained_epochs]
+    df["train_loss"] = [list(results["train_loss"])[-1]]
+    df["train_acc"] = [list(results["train_acc"])[-1]]
+    df["val_loss"] = [list(results["val_loss"])[-1]]
+    df["val_acc"] = [list(results["val_acc"])[-1]]
+
+    update_df = False
+    path = Path('models/models_results.csv')
+
+    if path.is_file() == True:
+        df_exist = pd.read_csv('models/models_results.csv')
+        for i in range(df_exist.shape[0]):
+            if Path(df["model_path"][0]) == Path(df_exist["model_path"].iloc[i]):
+                logger.info("Update model results in csv file")
+                df_exist.loc[i, "total_train_time"] = df["total_train_time"][0]
+                df_exist.loc[i, "trained_epochs"] = df["trained_epochs"][0]
+                df_exist.loc[i, "train_loss"] = df["train_loss"][0]
+                df_exist.loc[i, "train_acc"] = df["train_acc"][0]
+                df_exist.loc[i, "val_loss"] = df["val_loss"][0]
+                df_exist.loc[i, "val_acc"] = df["val_acc"][0]
+                update_df = True
+            else:
+                continue
+
+        if update_df == True:
+            df_exist.to_csv('models/models_results.csv', index=False)
+        else:
+            logger.info("Add new model results in csv file")
+            df_new = pd.concat([df_exist, df], ignore_index=True)
+            df_new.to_csv('models/models_results.csv', index=False)
+    else:
+        logger.info("Create csv file for storing model results")
+        df.to_csv('models/models_results.csv', index=False)
+
+    logger.info("Model stored!")
+
+    return folderpath
 def val_step(model: torch.nn.Module,
              dataloader: torch.utils.data.DataLoader,
              loss_fn: torch.nn.Module,
