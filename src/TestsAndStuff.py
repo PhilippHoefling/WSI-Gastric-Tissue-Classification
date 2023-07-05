@@ -9,3 +9,22 @@ print(img.mode)
 #%%
 
 #%%
+import torch
+
+torch.cuda.is_available()
+#%%
+# The path can also be read from a config file, etc.
+OPENSLIDE_PATH = r'C:\Users\phili\OpenSlide\openslide-win64-20230414\bin'
+
+import os
+if hasattr(os, 'add_dll_directory'):
+    # Python >= 3.8 on Windows
+    with os.add_dll_directory(OPENSLIDE_PATH):
+        import openslide
+else:
+    import openslide
+#%%
+import sys
+for p in sys:
+    print(p)
+#%%

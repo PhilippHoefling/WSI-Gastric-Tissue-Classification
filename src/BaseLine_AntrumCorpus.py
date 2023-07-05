@@ -15,12 +15,14 @@ import splitfolders
 from timeit import default_timer as timer
 from datetime import datetime
 from tqdm.auto import tqdm
+from torchinfo import summary
 import time
+import pickle
 import random
 # import skimage
 from skimage.io import imread
 from typing import Dict, List, Tuple
-from sklearn.model_selection import train
+#from sklearn.model_selection import train
 import torchvision
 from torch import nn
 from sklearn.metrics import accuracy_score
@@ -117,13 +119,13 @@ def load_pretrained_model(device, tf_model: bool):
     '''
 
     # Load best available weights from pretraining on ImageNet1K dataset
-    weights = torchvision.models.EfficientNet_V2_S_Weights.DEFAULT
+    weights = torchvision.models.ResNet50_Weights.DEFAULT
 
     # Load pretrained model with or without weights
     if tf_model:
-        model = torchvision.models.efficientnet_v2_s(weights)
+        model = torchvision.models.resnet50(weights)
     else:
-        model = torchvision.models.efficientnet_v2_s()
+        model = torchvision.models.resnet50()
 
     # Speed up training
     if torch.cuda.device_count() > 1:
@@ -131,7 +133,7 @@ def load_pretrained_model(device, tf_model: bool):
     model.to(device)
 
     return model, weights
-def train_new_model(dataset_path: str, tf_model: bool, activate_augmentation: bool):
+def train_new_model(dataset_path: str, tf_model: bool):
     '''
     Initializes the directories of the dataset, stores the selected model type, chooses the availabe device, initialize the model,
     loads the data, adjustes the last layer of the model architecture, Initializes the loss and the optimizer, sets seeds.
@@ -347,6 +349,29 @@ def train_step(model: torch.nn.Module,
     train_loss = train_loss / len(dataloader)
     train_acc = train_acc / len(dataloader)
     return train_loss, train_acc
+def store_hyperparameters(target_dir_new_model: str, model_name: str, dict: dict, timestampStr: str):
+    '''
+    Save the hyperparameters of the trained model in the model folder directory
+    return: Directory of the new model
+    '''
+
+    folderpath = get_storage_name(target_dir_new_model, model_name, timestampStr)
+
+    dict_path = folderpath / ("hyperparameter_dict.pkl")
+    with open(dict_path, "wb") as filestore:
+        pickle.dump(dict, filestore)
+    return folderpath
+
+def get_storage_name(targetfolder: str, model_name: str, timestampStr: str):
+    '''
+    Create folder directory for a model. In this folder the model and all associated files
+    return: Directory of the new model
+    '''
+
+    folderpath = Path(targetfolder + "/" + model_name + "_model" + "_" + timestampStr)
+    folderpath.mkdir(parents=True, exist_ok=True)
+
+    return folderpath
 
 def store_model(target_dir_new_model: str, tf_model: bool, model_name: str, hyperparameter_dict: dict,
                 trained_epochs: int, classifier_model: torch.nn.Module, results: dict, batch_size: int,

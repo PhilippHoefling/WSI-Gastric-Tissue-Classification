@@ -1,10 +1,10 @@
 
 from loguru import logger
-
+from BaseLine_AntrumCorpus import train_new_model
 
 if __name__ == "__main__":
     # Define dataset paths
-    dataset_path = 'data_combined'
+    dataset_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed'
     # model_folder = ""
     #test_folder = "data_combined/test"
     #single_image_path = 'data_combined/test/scissors/scissors_1.jpg'
@@ -25,6 +25,8 @@ if __name__ == "__main__":
     #Set activate_Augmentation=False means training without data augmentation
     if train_new_baseline_model:
         logger.info("Start training a new Baseline model...")
-        model_folder = train_new_model(dataset_path=dataset_path,tf_model=False, activate_augmentation=activate_Augmentation)
+        model_folder = train_new_model(dataset_path=dataset_path,tf_model=False)
         logger.info("Congratulations, training the baseline models was successful!")
 
+
+#%%
