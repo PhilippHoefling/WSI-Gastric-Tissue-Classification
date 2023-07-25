@@ -112,18 +112,34 @@ def split(original_dataset_dir: str,seed: int):
         dst = 'data_combined'
         splitfolders.ratio(src, output=dst, seed=seed, ratio=(0.8, 0.2))
 
-def load_pretrained_model(device, tf_model: bool):
+
+def load_pretrained_model(device, tf_model: str, class_names:list):
     '''
-    Load the pretrainind EfficientNet_V2_S pytorch model with or without weights
+    Load the pretrainind ResNet50 pytorch model with or without weights
     return: model and the pretrained weights
     '''
-
-    # Load best available weights from pretraining on ImageNet1K dataset
+    # Set the manual seeds
+    torch.manual_seed(cfg_hp["seed"])
+    torch.cuda.manual_seed(cfg_hp["seed"])
+    # Load weights from
     weights = torchvision.models.ResNet50_Weights.DEFAULT
 
     # Load pretrained model with or without weights
-    if tf_model:
+    if tf_model =='imagenet':
+        # Load pretrained ResNet50 Model
         model = torchvision.models.resnet50(weights)
+        #recreate classifier clayer( one output for each class)
+        fc_inputs = model.fc.in_features
+        model.fc = torch.nn.Sequential(
+            torch.nn.Linear(in_features=fc_inputs, out_features=256),
+            nn.ReLU(),
+            nn.Dropout(cfg_hp["dropout"]),
+            nn.Linear(256, len(class_names)),
+)
+    elif tf_model =='PathDat':
+        pretrained_url= "https://github.com/lunit-io/benchmark-ssl-pathology/releases/download/pretrained-weights/bt_rn50_ep200.torch"
+        torch.hub.load_state_dict_from_url(pretrained_url, progress=False)
+
     else:
         model = torchvision.models.resnet50()
 
@@ -162,9 +178,6 @@ def train_new_model(dataset_path: str, tf_model: bool):
                         split(original_dataset_dir='data_original', seed=cfg_hp["seed"][s])
                         split_dataset = False
 
-                    # Load pretrained model, weights and the transforms
-                    model, weights = load_pretrained_model(device, tf_model=tf_model)
-
                     # Load data
                     train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
                                                                               val_dir=val_dir,
@@ -172,14 +185,8 @@ def train_new_model(dataset_path: str, tf_model: bool):
                                                                               batch_size=cfg_hp["batch_size"][b],
                                                                               )
 
-                    # Recreate classifier layer
-                    #model = recreate_classifier_layer(model=model,
-                    #                                  tf_model=tf_model,
-                    #                                  dropout=cfg_hp["dropout"][d],
-                    #                                  class_names=class_names,
-                    #                                  seed=cfg_hp["seed"][s],
-                    #                                  device=device
-                    #                                  )
+                    # Load pretrained model, weights and the transforms
+                    model, weights = load_pretrained_model(device, tf_model=tf_model, class_names=class_names)
 
                     # Define loss and optimizer
                     loss_fn = nn.CrossEntropyLoss()
