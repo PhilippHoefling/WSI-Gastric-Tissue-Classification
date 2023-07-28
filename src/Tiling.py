@@ -1,7 +1,12 @@
+from PIL import Image
+import numpy as np
+import cv2
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+#workaround for Openslide import
 OPENSLIDE_PATH = r'C:\Users\phili\OpenSlide\openslide-win64-20230414\bin'
-
 import os
-
 if hasattr(os, 'add_dll_directory'):
     # Python >= 3.8 on Windows
     with os.add_dll_directory(OPENSLIDE_PATH):
@@ -9,36 +14,34 @@ if hasattr(os, 'add_dll_directory'):
 else:
     import openslide
 from openslide import deepzoom
-from PIL import Image
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
-import seaborn as sns
+
 
 
 def importTestSlide(slidepath="C:/Users/phili/DataspellProjects/xAIMasterThesis/data/WSIs/86HE.mrxs"):
     slide = openslide.open_slide(slidepath)
-    # slide_thumb = slide.get_thumbnail(size=(1200, 1200))
+
 
     tiles = deepzoom.DeepZoomGenerator(slide, tile_size=256, overlap=0, limit_bounds=True)
-    #print(tiles.level_dimensions)
+    print(tiles.level_dimensions)
+    print(tiles.level_tiles)
 
-    single_tile = tiles.get_tile(13, (4,3))
-
-
-    single_tile.show()
-
-
-    col, rows= tiles.level_tiles[15]
-    for c in range(col):
-        for r in range(rows):
-            tile1=tiles.get_tile(15,(c, r))
-            plt.figure(figsize=(5,5))
-            plt.imshow(tile1)
-            break
-
-        break
-    return tiles.get_tile(10, (0,0))
+    #slide_thumb = slide.get_thumbnail(size=(1200, 1200))
+    single_tile1 = tiles.get_tile(8, (0,0))
+    single_tile2 = tiles.get_tile(13, (5,1))
+    single_tile3 = tiles.get_tile(15, (20,5))
+    #slide_thumb.show()
+    single_tile1.show()
+    single_tile2.show()
+    single_tile3.show()
+    #col, rows= tiles.level_tiles[15]
+    #for c in range(col):
+    #    for r in range(rows):
+    #        tile1=tiles.get_tile(15,(c, r))
+    #        plt.figure(figsize=(5,5))
+    #        plt.imshow(tile1)
+    #        break
+    #    break
+    #return tiles.get_tile(10, (0,0))
 def thresholding(img, method='otsu'):
     # convert to grayscale complement image
     grayscale_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
