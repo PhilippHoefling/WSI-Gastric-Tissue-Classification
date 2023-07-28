@@ -498,3 +498,5 @@ def val_step(model: torch.nn.Module,
     val_acc = val_acc / len(dataloader)
     return val_loss, val_acc
 
+
+#%%

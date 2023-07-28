@@ -20,33 +20,47 @@ def loading(folder_name: str):
     return os.listdir(direc), len(os.listdir(direc))
 
 def load_sort_data(src_dir, dst_dir):
+    #check if src dir exists
+    if not os.path.exists(src_dir) or not os.path.isdir(src_dir):
+            print(f"Source path '{src_dir}' is not a valid directory.")
 
-    splits = ['test','train','val']
-
-    # Set the random seeds
-    torch.manual_seed(cfg_hp["seed"][s])
-    torch.cuda.manual_seed(cfg_hp["seed"][s])
+    # Set the random seed
+    np.random.seed(cfg_hp["seed"])
 
     labels = ['antrum','corpus','intermediate']
 
-    #load and sort all tiles from tileexporter in the according folder
 
     folders, num_folders = loading(src_dir)
-    print(folders)
+    npfol = np.array(folders)
+    np.random.shuffle(npfol)
+
+    train, validate, test = np.split(npfol, [int(.8*len(npfol)), int(.9*len(npfol))])
+
+    #split dictionary
+    splits = {
+        "train" : train,
+        "validate" : validate,
+        "test" : test
+    }
+
+    #load and sort all tiles from tileexporter in the according folder
     for folder in folders:
-     subfolders, num_folders = loading(src_dir)
      dir_folder = src_dir + "/" + folder
+     subfolders, num_folders = loading(dir_folder)
+     for subfolder in subfolders:
+         dir_subsubfolder = dir_folder + "/" + subfolder
+         images, num_images = loading(dir_subsubfolder)
+         for image in images:
+              dir_image = dir_subsubfolder + "/" + image
+              for label in labels:
+                 if label in image:
+                     if folder in splits["train"]:
+                         shutil.copyfile(dir_image, dst_dir+ "/train/" + label + "/" + image)
+                     if folder in splits["validate"]:
+                         shutil.copyfile(dir_image, dst_dir+ "/val/" + label + "/" + image)
+                     if folder in splits["test"]:
+                         shutil.copyfile(dir_image, dst_dir+ "/test/" + label + "/" + image)
 
-    # for subfolder in subfolders:
-    #     dir_subsubfolder = dir_folder + "/" + subfolder
-    #     images, num_images = loading(dir_subsubfolder)
-    #     for image in images:
-    #          dir_image = dir_subsubfolder + "/" + image
-    #         for label in labels:
-    #            if label in image:
-    #                shutil.copyfile(dir_image, dst_dir + label + "/" + image)
-
-load_sort_data("D:/DigPat2/tiles","C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed/")
 
 #%%
 #to do Eine rekursive Funktion schreiben, welche man einen Ordner übergibt, die checkt ob in dem Ordner PNGs sind

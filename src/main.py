@@ -1,6 +1,7 @@
 
 from loguru import logger
 from BaseLine_AntrumCorpus import train_new_model
+from process import load_sort_data
 
 if __name__ == "__main__":
     # Define dataset paths
@@ -14,8 +15,9 @@ if __name__ == "__main__":
 
     # Set if you want to train a new model or which evualation you want to make on an existing model
     train_new_transferlearning_model = False
-    train_new_baseline_model = True
+    train_new_baseline_model = False
     test_existing_model = False
+    preprocess = True
     #prediction_on_single_image = False
     #prediction_on_images = False
     #model_metrices = False
@@ -28,5 +30,8 @@ if __name__ == "__main__":
         model_folder = train_new_model(dataset_path=dataset_path,tf_model=False)
         logger.info("Congratulations, training the baseline models was successful!")
 
-
+    if preprocess:
+        logger.info("Start preprocessing data...")
+        load_sort_data("D:/DigPat2/tiles","C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed/")
+        logger.info("Congratulations, training the preprocessing was successful!")
 #%%

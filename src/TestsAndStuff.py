@@ -77,3 +77,9 @@ if __name__ == "__main__":
     model = resnet50(pretrained=True, progress=False, key="BT")
     summary(model)
 #%%
+import numpy as np
+x = np.arange(20.0)
+y= np.split(x, [ int(len(x)*0.8), int(len(x)*0.9)])
+print(x)
+print(y)
+#%%
