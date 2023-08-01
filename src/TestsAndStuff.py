@@ -83,3 +83,20 @@ y= np.split(x, [ int(len(x)*0.8), int(len(x)*0.9)])
 print(x)
 print(y)
 #%%
+from BaseLine_AntrumCorpus import create_dataloaders
+
+
+manual_transforms = transforms.Compose([
+    transforms.Resize((384,384)),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+])
+
+
+train_dataloader, val_dataloader, class_names = create_dataloaders(train_dir=train_dir,
+                                                                   val_dir=val_dir,
+                                                                   transform=manual_transforms,
+                                                                   batch_size=4,
+                                                                   num_workers=4)
+
+

@@ -11,7 +11,6 @@ import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from loguru import logger
-import splitfolders
 from timeit import default_timer as timer
 from datetime import datetime
 from tqdm.auto import tqdm
@@ -87,7 +86,7 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
                                                                        transform=manual_transforms,
                                                                        batch_size=batch_size,
                                                                        num_workers=num_workers)
-
+    print(class_names)
     return train_dataloader, val_dataloader, class_names
 
 
@@ -96,24 +95,8 @@ def loading(folder_name: str):
     direc = os.path.join(
         folder_name)
     return os.listdir(direc), len(os.listdir(direc))
-def split(original_dataset_dir: str,seed: int):
-    #Truncate the existing combined dataset folder
-    dst_dir = 'data_combined'
-    splits, num_splits = loading(dst_dir)
-    for split in splits:
-        if split == 'train' or split == 'val':
-            split_dir = dst_dir + '/' + split
-            shutil.rmtree(split_dir)
 
-    #Split original datasets into train&validation (80/20) and store it as combined dataset
-    datasets, num_datasets = loading(original_dataset_dir)
-    for dataset in datasets:
-        src = original_dataset_dir + '/' + dataset
-        dst = 'data_combined'
-        splitfolders.ratio(src, output=dst, seed=seed, ratio=(0.8, 0.2))
-
-
-def load_pretrained_model(device, tf_model: str, class_names:list):
+def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int):
     '''
     Load the pretrainind ResNet50 pytorch model with or without weights
     return: model and the pretrained weights
@@ -128,20 +111,34 @@ def load_pretrained_model(device, tf_model: str, class_names:list):
     if tf_model =='imagenet':
         # Load pretrained ResNet50 Model
         model = torchvision.models.resnet50(weights)
-        #recreate classifier clayer( one output for each class)
-        fc_inputs = model.fc.in_features
-        model.fc = torch.nn.Sequential(
-            torch.nn.Linear(in_features=fc_inputs, out_features=256),
-            nn.ReLU(),
-            nn.Dropout(cfg_hp["dropout"]),
-            nn.Linear(256, len(class_names)),
-)
+
     elif tf_model =='PathDat':
         pretrained_url= "https://github.com/lunit-io/benchmark-ssl-pathology/releases/download/pretrained-weights/bt_rn50_ep200.torch"
-        torch.hub.load_state_dict_from_url(pretrained_url, progress=False)
+        model = torch.hub.load_state_dict_from_url(pretrained_url, progress=False)
 
     else:
         model = torchvision.models.resnet50()
+
+
+
+    # Remove the last average pooling layer and the fully connected layer
+    #model = nn.Sequential(*list(model.children())[:-1])
+
+    #print(model)
+    num_ftrs = model.fc.in_features
+    # Recreate classifier layer with an additional layer in between
+    model.fc = torch.nn.Sequential(
+        torch.nn.Linear(in_features=num_ftrs, out_features=len(class_names)),
+        #nn.ReLU(),
+        #nn.Dropout(dropout),
+        #torch.nn.Linear(in_features=256, out_features=len(class_names))
+    )
+
+
+
+    # Unfreeze all the layers
+    for param in model.parameters():
+        param.requires_grad = True
 
     # Speed up training
     if torch.cuda.device_count() > 1:
@@ -149,7 +146,8 @@ def load_pretrained_model(device, tf_model: str, class_names:list):
     model.to(device)
 
     return model, weights
-def train_new_model(dataset_path: str, tf_model: bool):
+
+def train_new_model(dataset_path: str, tf_model: str):
     '''
     Initializes the directories of the dataset, stores the selected model type, chooses the availabe device, initialize the model,
     loads the data, adjustes the last layer of the model architecture, Initializes the loss and the optimizer, sets seeds.
@@ -168,55 +166,47 @@ def train_new_model(dataset_path: str, tf_model: bool):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info("Training on:")
     logger.info(device)
+    for b in range(len(cfg_hp["batch_size"])):
+        for l in range(len(cfg_hp["lr"])):
+            for d in range(len(cfg_hp["dropout"])):
+                # Load data
+                train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
+                                                                          val_dir=val_dir,
+                                                                          num_workers=cfg_hp["num_workers"],
+                                                                          batch_size=cfg_hp["batch_size"][b],
+                                                                          )
 
-    for s in range(len(cfg_hp["seed"])):
-        split_dataset = False
-        for b in range(len(cfg_hp["batch_size"])):
-            for l in range(len(cfg_hp["lr"])):
-                for d in range(len(cfg_hp["dropout"])):
-                    if split_dataset:
-                        split(original_dataset_dir='data_original', seed=cfg_hp["seed"][s])
-                        split_dataset = False
+                # Load pretrained model, weights and the transforms
+                model, weights = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout= d)
 
-                    # Load data
-                    train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
-                                                                              val_dir=val_dir,
-                                                                              num_workers=cfg_hp["num_workers"],
-                                                                              batch_size=cfg_hp["batch_size"][b],
-                                                                              )
+                # Define loss and optimizer
+                loss_fn = nn.CrossEntropyLoss()
+                optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l])
 
-                    # Load pretrained model, weights and the transforms
-                    model, weights = load_pretrained_model(device, tf_model=tf_model, class_names=class_names)
+                # Set the random seeds
+                torch.manual_seed(cfg_hp["seed"])
+                torch.cuda.manual_seed(cfg_hp["seed"])
 
-                    # Define loss and optimizer
-                    loss_fn = nn.CrossEntropyLoss()
-                    optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l])
-
-                    # Set the random seeds
-                    torch.manual_seed(cfg_hp["seed"][s])
-                    torch.cuda.manual_seed(cfg_hp["seed"][s])
-
-                    hyperparameter_dict = {"epochs": cfg_hp["epochs"], "seed": cfg_hp["seed"][s],
-                                           "learning_rate": cfg_hp["lr"][l], "dropout": cfg_hp["dropout"][d],
-                                           "batch_size": cfg_hp["batch_size"][b], "num_workers": cfg_hp["num_workers"]}
+                hyperparameter_dict = {"epochs": cfg_hp["epochs"], "seed": cfg_hp["seed"],
+                                       "learning_rate": cfg_hp["lr"][l], "dropout": cfg_hp["dropout"][d],
+                                       "batch_size": cfg_hp["batch_size"][b], "num_workers": cfg_hp["num_workers"]}
 
 
-                    # Setup training and save the results
-                    results, model_folder = train(target_dir_new_model=target_dir_new_model,
-                                                  tf_model=tf_model,
-                                                  model_name=model_name,
-                                                  model=model,
-                                                  train_dataloader=train_dataloader,
-                                                  val_dataloader=val_dataloader,
-                                                  optimizer=optimizer,
-                                                  loss_fn=loss_fn,
-                                                  batch_size=cfg_hp["batch_size"][b],
-                                                  epochs=cfg_hp["epochs"],
-                                                  hyperparameter_dict=hyperparameter_dict,
-                                                  device=device
-                                                  )
-
-    return model_folder
+                # Setup training and save the results
+                results, model_folder = train(target_dir_new_model=target_dir_new_model,
+                                              tf_model=tf_model,
+                                              model_name=model_name,
+                                              model=model,
+                                              train_dataloader=train_dataloader,
+                                              val_dataloader=val_dataloader,
+                                              optimizer=optimizer,
+                                              loss_fn=loss_fn,
+                                              batch_size=cfg_hp["batch_size"][b],
+                                              epochs=cfg_hp["epochs"],
+                                              hyperparameter_dict=hyperparameter_dict,
+                                              device=device
+                                              )
+        return model_folder
 
 def train(target_dir_new_model: str,
           tf_model: bool,
