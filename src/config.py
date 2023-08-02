@@ -1,5 +1,5 @@
 config_hyperparameter = {
-    "seed": 42,
+    "seed": 43,
     "dropout": [0.1],
     "lr": [0.001],
     "batch_size": [4],

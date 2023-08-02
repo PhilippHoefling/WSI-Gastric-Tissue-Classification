@@ -1,102 +1,58 @@
 #check if data is in RGB
 from PIL import Image
 import numpy as np
+import cv2
+import matplotlib.pyplot as plt
+from PIL import Image
 
-
-
-img = Image.open( "D:/QuPath Projekt/tiles/1HE/annotation_1/1HE x-11762_y-38874_w-512_h-512.png")
-img.load()
-print(img.mode)
-
-#%%
 
 #%%
 import torch
 
 torch.cuda.is_available()
 #%%
-# The path can also be read from a config file, etc.
-OPENSLIDE_PATH = r'C:\Users\phili\OpenSlide\openslide-win64-20230414\bin'
 
-import os
-if hasattr(os, 'add_dll_directory'):
-    # Python >= 3.8 on Windows
-    with os.add_dll_directory(OPENSLIDE_PATH):
-        import openslide
+from PIL import Image
+import matplotlib.pyplot as plt
+def is_white_or_grey_png(image_path, threshold=0.95):
+    try:
+        image = Image.open(image_path)
+    except IOError:
+        raise ValueError("Unable to open the image file")
+
+    # Convert the image to grayscale for easy white/grey detection
+    grayscale_image = image.convert("L")
+
+    # Get the pixel data from the image
+    pixels = grayscale_image.load()
+
+    # Get the image size
+    width, height = image.size
+
+    # Count the number of white/grey pixels in the image
+    white_or_grey_pixel_count = sum(pixels[x, y] >= 200 for x in range(width) for y in range(height))
+
+    # Calculate the percentage of white/grey pixels in the image
+    white_or_grey_percentage = white_or_grey_pixel_count / float(width * height)
+
+    # Check if the white/grey percentage is above the threshold
+    return white_or_grey_percentage > threshold
+
+# Usage example
+
+
+# Usage example
+image_path = "C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed/train/antrum/23HE d-10_x-8810_y-5210_w-2560_h-2560_antrum.png"
+image = Image.open(image_path)
+plt.imshow(image)
+plt.axis('off')
+plt.show()
+if is_white_or_grey_png(image_path):
+    print("The image contains just a white/grey background.")
+
 else:
-    import openslide
-#%%
-import sys
-for p in sys:
-    print(p)
+    print("The image contains tissue.")
 #%%
 
-import torch
-from torchvision import datasets, transforms
-import torchvision
-from torch import nn
-from torchvision.models.resnet import Bottleneck, ResNet
-from pytorch_model_summary import summary
-class ResNetTrunk(ResNet):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        del self.fc  # remove FC layer
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        return x
-def resnet50(pretrained, progress, key, **kwargs):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    model = ResNetTrunk(Bottleneck, [3, 4, 6, 3], **kwargs)
-
-    # Set the manual seeds
-    torch.manual_seed(42)
-    torch.cuda.manual_seed(42)
-    # Load weights from
-    weights = torchvision.models.ResNet50_Weights.DEFAULT
-
-    pretrained_url= "https://github.com/lunit-io/benchmark-ssl-pathology/releases/download/pretrained-weights/bt_rn50_ep200.torch"
-    model.load_state_dict(torch.hub.load_state_dict_from_url(pretrained_url, progress=False))
-
-    # Speed up training
-    if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model)
-    return model
-
-if __name__ == "__main__":
-    # initialize resnet50 trunk using BT pre-trained weight
-    model = resnet50(pretrained=True, progress=False, key="BT")
-    summary(model)
-#%%
-import numpy as np
-x = np.arange(20.0)
-y= np.split(x, [ int(len(x)*0.8), int(len(x)*0.9)])
-print(x)
-print(y)
-#%%
-from BaseLine_AntrumCorpus import create_dataloaders
-
-
-manual_transforms = transforms.Compose([
-    transforms.Resize((384,384)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-])
-
-
-train_dataloader, val_dataloader, class_names = create_dataloaders(train_dir=train_dir,
-                                                                   val_dir=val_dir,
-                                                                   transform=manual_transforms,
-                                                                   batch_size=4,
-                                                                   num_workers=4)
 
 

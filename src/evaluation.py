@@ -56,7 +56,7 @@ def print_model_metrices(model_folder: str, test_folder: str):
         target_image = target_image / 255
 
         manual_transforms = transforms.Compose([
-            transforms.Resize((384, 384)),
+            transforms.Resize((256, 256)),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
 

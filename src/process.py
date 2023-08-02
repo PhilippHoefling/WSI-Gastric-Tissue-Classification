@@ -11,6 +11,7 @@ import torch
 from config import config_hyperparameter as cfg_hp
 import shutil
 import splitfolders
+import glob
 
 
 
@@ -52,14 +53,61 @@ def load_sort_data(src_dir, dst_dir):
          images, num_images = loading(dir_subsubfolder)
          for image in images:
               dir_image = dir_subsubfolder + "/" + image
+              #check if the image contains more than 5% tissue
               for label in labels:
-                 if label in image:
+                 if label in image and is_white_or_grey_png(dir_image):
                      if folder in splits["train"]:
                          shutil.copyfile(dir_image, dst_dir+ "/train/" + label + "/" + image)
                      if folder in splits["validate"]:
                          shutil.copyfile(dir_image, dst_dir+ "/val/" + label + "/" + image)
                      if folder in splits["test"]:
                          shutil.copyfile(dir_image, dst_dir+ "/test/" + label + "/" + image)
+
+def count_png_files_in_subfolders(folder_path, subfolder_names):
+    png_counts = {}
+    for subfolder_name in subfolder_names:
+        subfolder_path = os.path.join(folder_path, subfolder_name)
+        png_count = sum(1 for file in glob.glob(os.path.join(subfolder_path, "*.png")))
+        png_counts[subfolder_name] = png_count
+    return png_counts
+
+def plot_file_distribution(dataset_path):
+    folders, num_folders = loading(dataset_path)
+
+    for folder in folders:
+        print(folder)
+        dir_folder = dataset_path + "/" + folder
+        subfolders, num_folders = loading(dir_folder)
+        png_counts = count_png_files_in_subfolders(dir_folder, subfolders)
+        print(png_counts)
+
+
+def is_white_or_grey_png(image_path, threshold=0.95):
+    try:
+        image = Image.open(image_path)
+    except IOError:
+        raise ValueError("Unable to open the image file")
+
+    # Convert the image to grayscale for easy white/grey detection
+    grayscale_image = image.convert("L")
+
+    # Get the pixel data from the image
+    pixels = grayscale_image.load()
+
+    # Get the image size
+    width, height = image.size
+
+    # Count the number of white/grey pixels in the image
+    white_or_grey_pixel_count = sum(pixels[x, y] >= 200 for x in range(width) for y in range(height))
+
+    # Calculate the percentage of white/grey pixels in the image
+    white_or_grey_percentage = white_or_grey_pixel_count / float(width * height)
+
+    # Check if the white/grey percentage is above the threshold
+    return white_or_grey_percentage < threshold
+
+# Usage example
+
 
 
 #%%

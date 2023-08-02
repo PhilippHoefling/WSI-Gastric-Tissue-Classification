@@ -3,11 +3,12 @@ from loguru import logger
 from BaseLine_AntrumCorpus import train_new_model
 from process import load_sort_data
 from evaluation import print_model_metrices
+from process import plot_file_distribution
 
 if __name__ == "__main__":
     # Define dataset paths
     dataset_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed'
-    model_folder = "models/Baseline_model_01082023_1428"
+    model_folder = "models/Baseline_model_02082023_1628"
     test_folder = "data/Processed/test"
     tf_model =""
     #test_folder = "data_combined/test"
@@ -20,6 +21,7 @@ if __name__ == "__main__":
     train_model = False
     test_existing_model = True
     preprocess = False
+    plot_data_distribution = False
     #prediction_on_images = False
     #model_metrices = False
     #activate_Augmentation = False
@@ -29,7 +31,7 @@ if __name__ == "__main__":
     if preprocess:
         logger.info("Start preprocessing data...")
         load_sort_data("D:/DigPat2/tiles","C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed/")
-        logger.info("Congratulations, training the preprocessing was successful!")
+        logger.info("Congratulations, the preprocessing was successful!")
 
     if train_model:
         logger.info("Start training a new Baseline model...")
@@ -40,3 +42,9 @@ if __name__ == "__main__":
     if test_existing_model:
         logger.info("Start testing the model..")
         print_model_metrices(model_folder=model_folder, test_folder=test_folder)   #%%
+
+    if plot_data_distribution:
+        logger.info("Start analyzing dataset..")
+        plot_file_distribution(dataset_path=dataset_path)   #%%
+
+#%%

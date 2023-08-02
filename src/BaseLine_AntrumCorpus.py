@@ -74,7 +74,10 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
 
     # Load transform function with or without data augmentation
     manual_transforms = transforms.Compose([
-            transforms.Resize((384,384)),
+            transforms.Resize((256,256)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomRotation(degrees=180),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
