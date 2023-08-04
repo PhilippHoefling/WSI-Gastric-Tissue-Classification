@@ -8,9 +8,9 @@ from process import plot_file_distribution
 if __name__ == "__main__":
     # Define dataset paths
     dataset_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed'
-    model_folder = "models/Baseline_model_02082023_1628"
+    model_folder = "models/TransferLearning_model_04082023_1018"
     test_folder = "data/Processed/test"
-    tf_model =""
+    tf_model ="imagenet"
     #test_folder = "data_combined/test"
     #single_image_path = 'data_combined/test/scissors/scissors_1.jpg'
 

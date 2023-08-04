@@ -99,6 +99,8 @@ def loading(folder_name: str):
         folder_name)
     return os.listdir(direc), len(os.listdir(direc))
 
+
+
 def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int):
     '''
     Load the pretrainind ResNet50 pytorch model with or without weights
@@ -115,12 +117,12 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
         # Load pretrained ResNet50 Model
         model = torchvision.models.resnet50(weights)
 
-    elif tf_model =='PathDat':
-        pretrained_url= "https://github.com/lunit-io/benchmark-ssl-pathology/releases/download/pretrained-weights/bt_rn50_ep200.torch"
-        model = torch.hub.load_state_dict_from_url(pretrained_url, progress=False)
-
+    #elif tf_model =='PathDat':
+    #    model = resnet50(pretrained=True, progress=False, key="BT")
+    #    return model
     else:
         model = torchvision.models.resnet50()
+
 
 
 
@@ -131,13 +133,13 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between
     model.fc = torch.nn.Sequential(
-        torch.nn.Linear(in_features=num_ftrs, out_features=len(class_names)),
-        #nn.ReLU(),
-        #nn.Dropout(dropout),
-        #torch.nn.Linear(in_features=256, out_features=len(class_names))
+        torch.nn.Linear(in_features=num_ftrs, out_features=256),
+        nn.ReLU(),
+        nn.Dropout(dropout),
+        torch.nn.Linear(in_features=256, out_features=len(class_names))
     )
 
-
+    print(model)
 
     # Unfreeze all the layers
     for param in model.parameters():
@@ -148,7 +150,7 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
         model = nn.DataParallel(model)
     model.to(device)
 
-    return model, weights
+    return model
 
 def train_new_model(dataset_path: str, tf_model: str):
     '''
@@ -180,7 +182,7 @@ def train_new_model(dataset_path: str, tf_model: str):
                                                                           )
 
                 # Load pretrained model, weights and the transforms
-                model, weights = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout= d)
+                model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout= d)
 
                 # Define loss and optimizer
                 loss_fn = nn.CrossEntropyLoss()
