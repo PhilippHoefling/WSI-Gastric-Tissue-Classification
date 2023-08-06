@@ -2,7 +2,7 @@
 from loguru import logger
 from BaseLine_AntrumCorpus import train_new_model
 from process import load_sort_data
-from evaluation import print_model_metrices
+from evaluation import print_model_metrices, pred_on_single_image
 from process import plot_file_distribution
 
 if __name__ == "__main__":
@@ -12,7 +12,7 @@ if __name__ == "__main__":
     test_folder = "data/Processed/test"
     tf_model ="imagenet"
     #test_folder = "data_combined/test"
-    #single_image_path = 'data_combined/test/scissors/scissors_1.jpg'
+    single_image_path = 'data/Processed/test/....'
 
     # Set parameter for testing
     #num_images = 6
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     test_existing_model = True
     preprocess = False
     plot_data_distribution = False
-    #prediction_on_images = False
+    prediction_on_images = False
     #model_metrices = False
     #activate_Augmentation = False
 
@@ -46,5 +46,9 @@ if __name__ == "__main__":
     if plot_data_distribution:
         logger.info("Start analyzing dataset..")
         plot_file_distribution(dataset_path=dataset_path)   #%%
+
+    if prediction_on_images:
+        logger.info("Start prediction on single image...")
+        pred_on_single_image(model_folder=model_folder,image_path=single_image_path)   #%%
 
 #%%

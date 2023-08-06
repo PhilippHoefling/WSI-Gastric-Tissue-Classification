@@ -47,7 +47,7 @@ def create_dataloaders(train_dir: str,
 
     # Get class names
     class_names = train_data.classes
-
+    print(class_names)
     # Turn images into data loaders
     train_dataloader = DataLoader(train_data,
                                   batch_size=batch_size,

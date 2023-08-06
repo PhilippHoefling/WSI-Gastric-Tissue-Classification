@@ -39,7 +39,16 @@ def get_model(model_folder: str):
 
     return classifier_model, results, dict, summary
 
+def pred_on_single_image(image_path:str, model_folder:str):
+    class_names = ['corpus','antrum']
 
+    weights = torchvision.models.EfficientNet_B0_Weights.DEFAULT
+    auto_transforms = weights.transforms()
+
+    trained_model, model_results, dict_hyperparameters = get_model(Path(model_folder))
+
+
+    pred_and_plot_image(trained_model, image_path, class_names, auto_transforms)
 def print_model_metrices(model_folder: str, test_folder: str):
     trained_model, model_results, dict_hyperparameters, summary = get_model(model_folder)
     image_path_list = list(Path(test_folder).glob("*/*.*"))
@@ -56,7 +65,7 @@ def print_model_metrices(model_folder: str, test_folder: str):
         target_image = target_image / 255
 
         manual_transforms = transforms.Compose([
-            transforms.Resize((256, 256)),
+            transforms.Resize((512, 512)),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
 
