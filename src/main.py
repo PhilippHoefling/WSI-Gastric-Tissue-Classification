@@ -8,21 +8,21 @@ from process import plot_file_distribution
 if __name__ == "__main__":
     # Define dataset paths
     dataset_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed'
-    model_folder = "models/TransferLearning_model_04082023_1018"
+    model_folder = "models/Baseline_model_04082023_1527"
     test_folder = "data/Processed/test"
     tf_model ="imagenet"
     #test_folder = "data_combined/test"
-    single_image_path = 'data/Processed/test/....'
+    single_image_path = 'data/Processed/test/corpus/6HE d-5_x-16855_y-3945_w-2560_h-2560_corpus.png'
 
     # Set parameter for testing
     #num_images = 6
 
     # Set if you want to train a new model or which evualation you want to make on an existing model
     train_model = False
-    test_existing_model = True
+    test_existing_model = False
     preprocess = False
-    plot_data_distribution = False
-    prediction_on_images = False
+    plot_data_distribution = True
+    prediction_on_image = False
     #model_metrices = False
     #activate_Augmentation = False
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         logger.info("Start analyzing dataset..")
         plot_file_distribution(dataset_path=dataset_path)   #%%
 
-    if prediction_on_images:
+    if prediction_on_image:
         logger.info("Start prediction on single image...")
         pred_on_single_image(model_folder=model_folder,image_path=single_image_path)   #%%
 

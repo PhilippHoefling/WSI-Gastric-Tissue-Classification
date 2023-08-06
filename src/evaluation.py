@@ -9,6 +9,8 @@ from torchvision import transforms
 import os
 from pathlib import Path
 from loguru import logger
+from PIL import Image
+from config import config_hyperparameter as cfg_hp
 
 def get_model(model_folder: str):
     # get model from model folder
@@ -39,20 +41,59 @@ def get_model(model_folder: str):
 
     return classifier_model, results, dict, summary
 
-def pred_on_single_image(image_path:str, model_folder:str):
-    class_names = ['corpus','antrum']
-
-    weights = torchvision.models.EfficientNet_B0_Weights.DEFAULT
-    auto_transforms = weights.transforms()
-
-    trained_model, model_results, dict_hyperparameters = get_model(Path(model_folder))
 
 
-    pred_and_plot_image(trained_model, image_path, class_names, auto_transforms)
+def pred_on_single_image(image_path: str, model_folder: str):
+    '''
+    Make predictions on a single images and plot the images with the prediction
+    return: Nothing
+    '''
+
+    class_names = cfg_hp["class_names"]
+
+    trained_model, model_results, dict_hyperparameters, summary = get_model(model_folder)
+
+    #Load image
+    target_image = torchvision.io.read_image(str(image_path)).type(torch.float32)
+
+    # Divide the image pixel values by 255 to get them between [0, 1]
+    target_image = target_image / 255
+
+    manual_transforms = transforms.Compose([
+        transforms.Resize((512, 512)),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+
+    # Transform if necessary
+    target_image = manual_transforms(target_image)
+
+    # Turn on model evaluation mode and inference mode
+    trained_model.eval()
+    with torch.inference_mode():
+        # Add an extra dimension to the image
+        target_image = target_image.unsqueeze(dim=0)
+        # Make a prediction on image with an extra dimension
+        target_image_pred = trained_model(target_image.cuda())
+    # (using torch.softmax() for multi-class classification)
+    _, predicted_idx = torch.max(target_image_pred, 1)
+
+    target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
+
+
+    prediction_label = class_names[predicted_idx]
+
+    # Load and display the image
+    image = Image.open(image_path)
+    plt.imshow(np.array(image))
+    plt.title(f"Prediction: {prediction_label}" + "  Probabilities " + str(target_image_pred_probs[0].tolist()))
+
+    plt.axis('off')
+    plt.show()
+
 def print_model_metrices(model_folder: str, test_folder: str):
     trained_model, model_results, dict_hyperparameters, summary = get_model(model_folder)
     image_path_list = list(Path(test_folder).glob("*/*.*"))
-    class_names = ['corpus', 'antrum']
+    class_names = cfg_hp["class_names"]
     accuracy = []
     predictions = []
     y_test = []

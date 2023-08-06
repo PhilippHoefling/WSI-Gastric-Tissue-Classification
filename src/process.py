@@ -64,24 +64,41 @@ def load_sort_data(src_dir, dst_dir):
                          shutil.copyfile(dir_image, dst_dir+ "/test/" + label + "/" + image)
 
 def count_png_files_in_subfolders(folder_path, subfolder_names):
-    png_counts = {}
+    png_counts = []
     for subfolder_name in subfolder_names:
         subfolder_path = os.path.join(folder_path, subfolder_name)
         png_count = sum(1 for file in glob.glob(os.path.join(subfolder_path, "*.png")))
-        png_counts[subfolder_name] = png_count
+        png_counts.append(png_count)
     return png_counts
 
 def plot_file_distribution(dataset_path):
     folders, num_folders = loading(dataset_path)
 
+    png_counts = dict()
+
     for folder in folders:
         print(folder)
         dir_folder = dataset_path + "/" + folder
         subfolders, num_folders = loading(dir_folder)
-        png_counts = count_png_files_in_subfolders(dir_folder, subfolders)
-        print(png_counts)
+        png_counts[folder] = count_png_files_in_subfolders(dir_folder, subfolders)
 
 
+    print(png_counts)
+
+    # Plot the data distribution using a bar chart
+    x = np.arange(len(cfg_hp["class_names"]))
+    width = 0.2
+
+    plt.bar(x, png_counts[folders[0]], width, label=folders[0])
+    plt.bar([pos + width for pos in x], png_counts[folders[1]], width, label=folders[1])
+    plt.bar([pos + 2 * width for pos in x], png_counts[folders[2]], width, label=folders[2])
+
+    plt.xlabel('Class Labels')
+    plt.ylabel('Number of Samples')
+    plt.title('Data Distribution of Train, Validation, and Test Datasets')
+    plt.xticks([pos + width for pos in x], cfg_hp["class_names"])
+    plt.legend()
+    plt.show()
 def is_white_or_grey_png(image_path, threshold=0.95):
     try:
         image = Image.open(image_path)
