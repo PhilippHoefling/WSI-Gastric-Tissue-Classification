@@ -4,15 +4,18 @@ from BaseLine_AntrumCorpus import train_new_model
 from process import load_sort_data
 from evaluation import print_model_metrices, pred_on_single_image
 from process import plot_file_distribution
+from Tiling import TestonSlide
+import torchvision
+import torch
 
 if __name__ == "__main__":
     # Define dataset paths
     dataset_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed'
-    model_folder = "models/Baseline_model_04082023_1527"
+    model_folder = "models/Baseline_model_11082023_1140"
     test_folder = "data/Processed/test"
-    tf_model ="imagenet"
-    #test_folder = "data_combined/test"
-    single_image_path = 'data/Processed/test/corpus/6HE d-5_x-16855_y-3945_w-2560_h-2560_corpus.png'
+    tf_model =""
+    single_image_path = 'data/Processed/test/64HE d-5_x-2740_y-118040_w-2560_h-2560_antrum.png'
+    test_slidepath = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/WSIs/12HE.mrxs'
 
     # Set parameter for testing
     #num_images = 6
@@ -23,6 +26,7 @@ if __name__ == "__main__":
     preprocess = False
     plot_data_distribution = True
     prediction_on_image = False
+    testonWSI =  False
     #model_metrices = False
     #activate_Augmentation = False
 
@@ -30,7 +34,7 @@ if __name__ == "__main__":
 
     if preprocess:
         logger.info("Start preprocessing data...")
-        load_sort_data("D:/DigPat2/tiles","C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed/")
+        load_sort_data("D:/DigPatFinal/tiles","C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed/")
         logger.info("Congratulations, the preprocessing was successful!")
 
     if train_model:
@@ -49,6 +53,11 @@ if __name__ == "__main__":
 
     if prediction_on_image:
         logger.info("Start prediction on single image...")
-        pred_on_single_image(model_folder=model_folder,image_path=single_image_path)   #%%
+        pred_on_single_image(model_folder=model_folder,single_image_path=single_image_path)   #%%
+
+    if testonWSI:
+        logger.info("Start prediction on WSI...")
+        TestonSlide(model_folder=model_folder, slidepath=test_slidepath)   #%%
+
 
 #%%

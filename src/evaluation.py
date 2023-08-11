@@ -43,7 +43,7 @@ def get_model(model_folder: str):
 
 
 
-def pred_on_single_image(image_path: str, model_folder: str):
+def pred_on_single_image(single_image_path, model_folder: str):
     '''
     Make predictions on a single images and plot the images with the prediction
     return: Nothing
@@ -53,8 +53,7 @@ def pred_on_single_image(image_path: str, model_folder: str):
 
     trained_model, model_results, dict_hyperparameters, summary = get_model(model_folder)
 
-    #Load image
-    target_image = torchvision.io.read_image(str(image_path)).type(torch.float32)
+    target_image= torchvision.io.read_image(str(single_image_path)).type(torch.float32)
 
     # Divide the image pixel values by 255 to get them between [0, 1]
     target_image = target_image / 255
@@ -78,17 +77,15 @@ def pred_on_single_image(image_path: str, model_folder: str):
     _, predicted_idx = torch.max(target_image_pred, 1)
 
     target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
-
-
     prediction_label = class_names[predicted_idx]
 
-    # Load and display the image
-    image = Image.open(image_path)
+    image = Image.open(single_image_path)
     plt.imshow(np.array(image))
     plt.title(f"Prediction: {prediction_label}" + "  Probabilities " + str(target_image_pred_probs[0].tolist()))
 
     plt.axis('off')
     plt.show()
+
 
 def print_model_metrices(model_folder: str, test_folder: str):
     trained_model, model_results, dict_hyperparameters, summary = get_model(model_folder)

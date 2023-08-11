@@ -105,3 +105,23 @@ if __name__ == "__main__":
     model = resnet50(pretrained=True, progress=False, key="BT")
     print(model)
 #%%
+
+import numpy as np
+from sklearn import metrics
+import pickle
+import matplotlib.pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, roc_auc_score
+import torch
+import torchvision
+from torchvision import transforms
+import os
+from pathlib import Path
+from loguru import logger
+from PIL import Image
+from config import config_hyperparameter as cfg_hp
+
+
+classifier_model = pickle.load("C:/Users/phili/DataspellProjects/xAIMasterThesis/models/Baseline_model_27062023_1400/model.pkl")
+# Turn on model evaluation mode and inference mode
+classifier_model.eval()
+pred()

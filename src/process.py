@@ -63,42 +63,46 @@ def load_sort_data(src_dir, dst_dir):
                      if folder in splits["test"]:
                          shutil.copyfile(dir_image, dst_dir+ "/test/" + label + "/" + image)
 
-def count_png_files_in_subfolders(folder_path, subfolder_names):
-    png_counts = []
-    for subfolder_name in subfolder_names:
-        subfolder_path = os.path.join(folder_path, subfolder_name)
-        png_count = sum(1 for file in glob.glob(os.path.join(subfolder_path, "*.png")))
-        png_counts.append(png_count)
-    return png_counts
+
 
 def plot_file_distribution(dataset_path):
     folders, num_folders = loading(dataset_path)
 
-    png_counts = dict()
+    classes = cfg_hp["class_names"]
+    datasets = ["train", "val", "test"]
 
-    for folder in folders:
-        print(folder)
-        dir_folder = dataset_path + "/" + folder
-        subfolders, num_folders = loading(dir_folder)
-        png_counts[folder] = count_png_files_in_subfolders(dir_folder, subfolders)
+    class_counts = {dataset: {cls: 0 for cls in classes} for dataset in datasets}
 
+    for dataset in datasets:
+        for cls in classes:
+            class_folder = os.path.join(dataset_path, dataset, cls)
+            class_counts[dataset][cls] = len(os.listdir(class_folder))
 
-    print(png_counts)
+    num_datasets = len(datasets)
+    bar_width = 0.35
+    index = np.arange(num_datasets)
 
-    # Plot the data distribution using a bar chart
-    x = np.arange(len(cfg_hp["class_names"]))
-    width = 0.2
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-    plt.bar(x, png_counts[folders[0]], width, label=folders[0])
-    plt.bar([pos + width for pos in x], png_counts[folders[1]], width, label=folders[1])
-    plt.bar([pos + 2 * width for pos in x], png_counts[folders[2]], width, label=folders[2])
+    for i, cls in enumerate(classes):
+        counts = [class_counts[dataset][cls] for dataset in datasets]
+        ax.bar(index + i * bar_width, counts, bar_width, label=cls)
 
-    plt.xlabel('Class Labels')
-    plt.ylabel('Number of Samples')
-    plt.title('Data Distribution of Train, Validation, and Test Datasets')
-    plt.xticks([pos + width for pos in x], cfg_hp["class_names"])
-    plt.legend()
+    ax.set_xlabel('Dataset')
+    ax.set_ylabel('Number of Samples')
+    ax.set_title('Class Distribution')
+    ax.set_xticks(index + bar_width * (num_datasets - 1) / 2)
+    ax.set_xticklabels(datasets)
+    ax.legend()
+
+    plt.tight_layout()
     plt.show()
+
+
+
+
+
+
 def is_white_or_grey_png(image_path, threshold=0.95):
     try:
         image = Image.open(image_path)
