@@ -36,7 +36,7 @@ def TestonSlide(model_folder: str, slidepath: str):
 
     manual_transforms = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Resize((512, 512)),
+        transforms.Resize((224, 224)),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
 
@@ -70,10 +70,9 @@ def TestonSlide(model_folder: str, slidepath: str):
                 # Make a prediction on image with an extra dimension
                 target_image_pred = trained_model(target_image.cuda())
 
-            target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
-            predictions[c][r]= target_image_pred_probs.tolist()[0][0]
+            target_image_pred_probs = torch.sigmoid(target_image_pred)
+            prediction= target_image_pred_probs.tolist()[0][0]
 
-    print(predictions)
 
     # Create a heatmap using matplotlib
     plt.imshow(predictions, cmap='viridis', interpolation='nearest')

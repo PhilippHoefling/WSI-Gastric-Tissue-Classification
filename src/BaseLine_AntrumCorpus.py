@@ -27,6 +27,7 @@ from torch import nn
 from sklearn.metrics import accuracy_score
 
 from torchvision.models.resnet import Bottleneck, ResNet
+from evaluation import get_model
 
 from pathlib import Path
 
@@ -74,7 +75,7 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
 
     # Load transform function with or without data augmentation
     manual_transforms = transforms.Compose([
-            transforms.Resize((512,512)),
+            transforms.Resize((224,224)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.RandomRotation(degrees=180),
@@ -110,18 +111,18 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     torch.manual_seed(cfg_hp["seed"])
     torch.cuda.manual_seed(cfg_hp["seed"])
     # Load weights from
-    weights = torchvision.models.ResNet50_Weights.DEFAULT
+    weights = torchvision.models.ResNet18_Weights.DEFAULT
 
     # Load pretrained model with or without weights
     if tf_model =='imagenet':
         # Load pretrained ResNet50 Model
-        model = torchvision.models.resnet50(weights)
+        model = torchvision.models.resnet18(weights)
 
     #elif tf_model =='PathDat':
     #    model = resnet50(pretrained=True, progress=False, key="BT")
     #    return model
     else:
-        model = torchvision.models.resnet50()
+        model = torchvision.models.resnet18()
 
 
 
@@ -133,11 +134,11 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between
     model.fc = torch.nn.Sequential(
-        torch.nn.Linear(in_features=num_ftrs, out_features=256),
-        nn.ReLU(),
-        nn.Dropout(dropout),
-        torch.nn.Linear(in_features=256, out_features=len(class_names))
-    )
+        torch.nn.Linear(in_features=num_ftrs, out_features=1))
+    #    nn.ReLU(),
+    #    nn.Dropout(dropout),
+      #  torch.nn.Linear(in_features=256, out_features=len(class_names))
+
 
     print(model)
 
@@ -185,8 +186,12 @@ def train_new_model(dataset_path: str, tf_model: str):
                 model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout= d)
 
                 # Define loss and optimizer
-                loss_fn = nn.CrossEntropyLoss()
-                optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l])
+                loss_fn = nn.BCEWithLogitsLoss()
+                optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=5e-4)
+
+                #MultiStepLR learning rate scheduler
+                scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20 , gamma=0.1)
+
 
                 # Set the random seeds
                 torch.manual_seed(cfg_hp["seed"])
@@ -205,6 +210,7 @@ def train_new_model(dataset_path: str, tf_model: str):
                                               train_dataloader=train_dataloader,
                                               val_dataloader=val_dataloader,
                                               optimizer=optimizer,
+                                              scheduler=scheduler,
                                               loss_fn=loss_fn,
                                               batch_size=cfg_hp["batch_size"][b],
                                               epochs=cfg_hp["epochs"],
@@ -220,6 +226,7 @@ def train(target_dir_new_model: str,
           train_dataloader: torch.utils.data.DataLoader,
           val_dataloader: torch.utils.data.DataLoader,
           optimizer: torch.optim.Optimizer,
+          scheduler: torch.optim.lr_scheduler,
           loss_fn: torch.nn.Module,
           batch_size: int,
           epochs: int,
@@ -258,6 +265,7 @@ def train(target_dir_new_model: str,
                                            dataloader=train_dataloader,
                                            loss_fn=loss_fn,
                                            optimizer=optimizer,
+                                           scheduler=scheduler,
                                            device=device
                                            )
         val_loss, val_acc = val_step(model=model,
@@ -296,6 +304,9 @@ def train(target_dir_new_model: str,
 
             early_stopping = 0
 
+        if epoch == 50:
+            break
+
         if epoch < 9:
             early_stopping = 0
 
@@ -310,6 +321,7 @@ def train_step(model: torch.nn.Module,
                dataloader: torch.utils.data.DataLoader,
                loss_fn: torch.nn.Module,
                optimizer: torch.optim.Optimizer,
+               scheduler: torch.optim.lr_scheduler,
                device
                ) -> Tuple[float, float]:
     '''
@@ -326,6 +338,9 @@ def train_step(model: torch.nn.Module,
     # Loop through data loader data batches
     for batch, (X, y) in enumerate(dataloader):
         X, y = X.to(device), y.to(device)
+
+        # Add an extra dimension to the target tensor
+        y = y.unsqueeze(1).float()
 
         # 1. Forward pass
         y_pred = model(X)
@@ -344,10 +359,11 @@ def train_step(model: torch.nn.Module,
         optimizer.step()
 
         # Calculate and accumulate accuracy metric across all batches
-        y_pred_class = torch.argmax(torch.softmax(y_pred, dim=1), dim=1)
+        y_pred_class = torch.sigmoid(y_pred).round()
         train_acc += (y_pred_class == y).sum().item() / len(y_pred)
 
     # Adjust metrics to get average loss and accuracy per batch
+    scheduler.step()
     train_loss = train_loss / len(dataloader)
     train_acc = train_acc / len(dataloader)
     return train_loss, train_acc
@@ -471,11 +487,14 @@ def val_step(model: torch.nn.Module,
     # Setup val loss and val accuracy values
     val_loss, val_acc = 0, 0
 
-    # Turn on inference context manager
-    with torch.inference_mode():
+
+    with torch.no_grad():
         # Loop through DataLoader batches
         for batch, (X, y) in enumerate(dataloader):
             X, y = X.to(device), y.to(device)
+
+            # Add an extra dimension to the target tensor
+            y = y.unsqueeze(1).float()
 
             # 1. Forward pass
             val_pred_logits = model(X)
@@ -485,7 +504,7 @@ def val_step(model: torch.nn.Module,
             val_loss += loss.item()
 
             # Calculate and accumulate accuracy
-            val_pred_labels = val_pred_logits.argmax(dim=1)
+            val_pred_labels =  torch.sigmoid(val_pred_logits).round()
             val_acc += ((val_pred_labels == y).sum().item() / len(val_pred_labels))
 
     # Adjust metrics to get average loss and accuracy per batch
@@ -493,5 +512,40 @@ def val_step(model: torch.nn.Module,
     val_acc = val_acc / len(dataloader)
     return val_loss, val_acc
 
+def plot_loss_acc_curves(model_folder: str):
+    # Plots training curves of a results dictionary and saves figures into model directory
+    #return: Nothing
+    trained_model, model_results, dict_hyperparameters, summary = get_model(Path(model_folder))
+    loss = model_results["train_loss"]
+    val_loss = model_results["val_loss"]
+
+    accuracy = model_results["train_acc"]
+    val_accuracy = model_results["val_acc"]
+
+    epochs = range(len(model_results["train_loss"]))
+
+    plt.figure(figsize=(15, 7))
+
+    # Plot loss
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, loss, label="train_loss")
+    plt.plot(epochs, val_loss, label="val_loss")
+    plt.title("Loss")
+    plt.xlabel("Epochs")
+    axl = plt.gca()
+    axl.set_ylim([0, 1.4])
+    plt.legend()
+
+    # Plot accuracy
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, accuracy, label="train_accuracy")
+    plt.plot(epochs, val_accuracy, label="val_accuracy")
+    plt.title("Accuracy")
+    plt.xlabel("Epochs")
+    plt.legend()
+    axa = plt.gca()
+    axa.set_ylim([0.3, 1])
+    plt.savefig(model_folder + "/" + "train_loss_acc.png")
+    plt.show()
 
 #%%

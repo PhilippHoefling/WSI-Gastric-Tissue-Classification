@@ -28,7 +28,7 @@ def load_sort_data(src_dir, dst_dir):
     # Set the random seed
     np.random.seed(cfg_hp["seed"])
 
-    labels = ['antrum','corpus','intermediate']
+    labels = 'corpus','antrum'
 
 
     folders, num_folders = loading(src_dir)
@@ -57,11 +57,11 @@ def load_sort_data(src_dir, dst_dir):
               for label in labels:
                  if label in image and is_white_or_grey_png(dir_image):
                      if folder in splits["train"]:
-                         shutil.copyfile(dir_image, dst_dir+ "/train/" + label + "/" + image)
+                         shutil.copyfile(dir_image, dst_dir+ "/train/" + label.replace("_","") + "/" + image)
                      if folder in splits["validate"]:
-                         shutil.copyfile(dir_image, dst_dir+ "/val/" + label + "/" + image)
+                         shutil.copyfile(dir_image, dst_dir+ "/val/" + label.replace("_","") + "/" + image)
                      if folder in splits["test"]:
-                         shutil.copyfile(dir_image, dst_dir+ "/test/" + label + "/" + image)
+                         shutil.copyfile(dir_image, dst_dir+ "/test/" + label.replace("_","") + "/" + image)
 
 
 

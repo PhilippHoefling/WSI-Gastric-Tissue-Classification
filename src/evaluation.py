@@ -2,7 +2,7 @@ import numpy as np
 from sklearn import metrics
 import pickle
 import matplotlib.pyplot as plt
-from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, roc_auc_score
+from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, auc
 import torch
 import torchvision
 from torchvision import transforms
@@ -59,7 +59,7 @@ def pred_on_single_image(single_image_path, model_folder: str):
     target_image = target_image / 255
 
     manual_transforms = transforms.Compose([
-        transforms.Resize((512, 512)),
+        transforms.Resize((224, 224)),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
 
@@ -92,6 +92,7 @@ def print_model_metrices(model_folder: str, test_folder: str):
     image_path_list = list(Path(test_folder).glob("*/*.*"))
     class_names = cfg_hp["class_names"]
     accuracy = []
+    probabilities = []
     predictions = []
     y_test = []
 
@@ -103,7 +104,7 @@ def print_model_metrices(model_folder: str, test_folder: str):
         target_image = target_image / 255
 
         manual_transforms = transforms.Compose([
-            transforms.Resize((512, 512)),
+            transforms.Resize((224, 224)),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
 
@@ -118,14 +119,16 @@ def print_model_metrices(model_folder: str, test_folder: str):
 
             # Make a prediction on image with an extra dimension
             target_image_pred = trained_model(target_image.cuda())
-
+            probabilities.append(torch.sigmoid(target_image_pred).item())
         # Convert logits -> prediction probabilities
         # (using torch.softmax() for multi-class classification)
-        target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
+        #target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
+        target_image_pred_probs = torch.sigmoid(target_image_pred).round()
 
-        # Convert prediction probabilities -> prediction labels
-        target_image_pred_label = torch.argmax(target_image_pred_probs, dim=1)
-        pred_class = class_names[target_image_pred_label.item()]
+
+    # Convert prediction probabilities -> prediction labels
+        target_image_pred_label = target_image_pred_probs.round()
+        pred_class = class_names[int(target_image_pred_label)]
         true_class = image_path.parts[3]
         predictions.append(target_image_pred_label.item())
         y_test.append(class_names.index(true_class))
@@ -144,32 +147,29 @@ def print_model_metrices(model_folder: str, test_folder: str):
     print("Recall on test set " + str(recall_score(y_test, predictions, average='macro')))
     print("F1 Score on test set " + str(f1_score(y_test, predictions, average='macro')))
     # print("Log-Loss on test set " + str(log_loss(y_test, predictions)))
+    print(probabilities)
+    plot_roc_curve( y_test, probabilities)
 
-    plot_roc_curve(y_test,predictions)
-def plot_roc_curve(y_true, y_scores):
-    """
-    Plots the ROC curve for a binary classification model.
 
-    Parameters:
-        y_true (array-like): The true binary labels.
-        y_scores (array-like): The predicted probabilities for the positive class.
+    #plot_roc_curve(y_test,target_image_pred_probs)
+def plot_roc_curve(y_true, y_scores, title='ROC Curve'):
 
-    Returns:
-        None (displays the ROC curve plot)
-    """
-    # Compute the false positive rate (FPR), true positive rate (TPR), and thresholds
+
     fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+    print(fpr)
+    print(tpr)
+    roc_auc = auc(fpr, tpr)
 
-    # Calculate the Area Under the Curve (AUC)
-    auc_score = roc_auc_score(y_true, y_scores)
-    print("AUC Score on test set  " + str(auc_score))
-    # Plot the ROC curve
-    plt.figure(figsize=(8, 6))
-    plt.plot(fpr, tpr, color='b', lw=2, label=f'ROC curve (AUC = {auc_score:.2f})')
-    plt.plot([0, 1], [0, 1], color='grey', linestyle='--')
-    plt.xlabel('False Positive Rate (FPR)')
-    plt.ylabel('True Positive Rate (TPR)')
-    plt.title('Receiver Operating Characteristic (ROC) Curve')
-    plt.legend(loc='lower right')
-    plt.grid(True)
+    plt.figure()
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate (1 - Specificity)')
+    plt.ylabel('True Positive Rate (Sensitivity)')
+    plt.title(title)
+    plt.legend(loc="lower right")
+
+
     plt.show()
+
