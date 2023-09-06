@@ -12,6 +12,7 @@ from config import config_hyperparameter as cfg_hp
 import shutil
 import splitfolders
 import glob
+import csv
 
 
 
@@ -44,24 +45,35 @@ def load_sort_data(src_dir, dst_dir):
         "test" : test
     }
 
+    # Open the CSV file in write mode
+    #with open("data_split.csv", 'w', newline='') as csv_file:
+    #    # Create a CSV writer object
+    #    csv_writer = csv.writer(csv_file)
+
+    #    # Write the string as a single-row CSV entry
+    #    csv_writer.writerow(["train: " + str(train)])
+    #    csv_writer.writerow(["val: " + str(validate)])
+    #    csv_writer.writerow(["test: " + str(test)])
+
+
     #load and sort all tiles from tileexporter in the according folder
     for folder in folders:
-     dir_folder = src_dir + "/" + folder
-     subfolders, num_folders = loading(dir_folder)
-     for subfolder in subfolders:
-         dir_subsubfolder = dir_folder + "/" + subfolder
-         images, num_images = loading(dir_subsubfolder)
-         for image in images:
-              dir_image = dir_subsubfolder + "/" + image
-              #check if the image contains more than 5% tissue
-              for label in labels:
-                 if label in image and is_white_or_grey_png(dir_image):
-                     if folder in splits["train"]:
-                         shutil.copyfile(dir_image, dst_dir+ "/train/" + label.replace("_","") + "/" + image)
-                     if folder in splits["validate"]:
-                         shutil.copyfile(dir_image, dst_dir+ "/val/" + label.replace("_","") + "/" + image)
-                     if folder in splits["test"]:
-                         shutil.copyfile(dir_image, dst_dir+ "/test/" + label.replace("_","") + "/" + image)
+        dir_folder = src_dir + "/" + folder
+        subfolders, num_folders = loading(dir_folder)
+        for subfolder in subfolders:
+             dir_subsubfolder = dir_folder + "/" + subfolder
+             images, num_images = loading(dir_subsubfolder)
+             for image in images:
+                  dir_image = dir_subsubfolder + "/" + image
+                  #check if the image contains more than 5% tissue
+                  for label in labels:
+                     if label in image and is_white_or_grey_png(dir_image):
+                         if folder in splits["train"]:
+                             shutil.copyfile(dir_image, dst_dir+ "/train/" + label.replace("_","") + "/" + image)
+                         if folder in splits["validate"]:
+                             shutil.copyfile(dir_image, dst_dir+ "/val/" + label.replace("_","") + "/" + image)
+                         if folder in splits["test"]:
+                             shutil.copyfile(dir_image, dst_dir+ "/test/" + label.replace("_","") + "/" + image)
 
 
 

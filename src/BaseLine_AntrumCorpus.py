@@ -33,7 +33,8 @@ from pathlib import Path
 
 def create_dataloaders(train_dir: str,
                        val_dir: str,
-                       transform: transforms.Compose,
+                       val_transform: transforms.Compose,
+                       train_transform: transforms.Compose,
                        batch_size: int,
                        num_workers: int = 4
                        ):
@@ -43,8 +44,8 @@ def create_dataloaders(train_dir: str,
     '''
 
     # Use ImageFolder to create dataset(s)
-    train_data = datasets.ImageFolder(train_dir, transform=transform)
-    val_data = datasets.ImageFolder(val_dir, transform=transform)
+    train_data = datasets.ImageFolder(train_dir, transform=train_transform)
+    val_data = datasets.ImageFolder(val_dir, transform=val_transform)
 
     # Get class names
     class_names = train_data.classes
@@ -59,7 +60,7 @@ def create_dataloaders(train_dir: str,
 
     val_dataloader = DataLoader(val_data,
                                 batch_size=batch_size,
-                                shuffle=True,
+                                shuffle=False,
                                 num_workers=num_workers,
                                 pin_memory=True
                                 )
@@ -73,8 +74,8 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
     return: dataloaders for training and validation, list of the class names in the dataset
     '''
 
-    # Load transform function with or without data augmentation
-    manual_transforms = transforms.Compose([
+
+    train_transforms = transforms.Compose([
             transforms.Resize((224,224)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
@@ -83,11 +84,17 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
 
+    val_transforms = transforms.Compose([
+        transforms.Resize((224,224)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
 
     # Create train and validation data loaders as well as get a list of class names
     train_dataloader, val_dataloader, class_names = create_dataloaders(train_dir=train_dir,
                                                                        val_dir=val_dir,
-                                                                       transform=manual_transforms,
+                                                                       train_transform=train_transforms,
+                                                                       val_transform=val_transforms,
                                                                        batch_size=batch_size,
                                                                        num_workers=num_workers)
     print(class_names)
@@ -304,7 +311,9 @@ def train(target_dir_new_model: str,
 
             early_stopping = 0
 
-        if epoch == 50:
+        if epoch == 40:
+            model_folder = store_model(target_dir_new_model, tf_model, model_name, hyperparameter_dict, trained_epochs,
+                                       model, results, batch_size, total_train_time, timestampStr)
             break
 
         if epoch < 9:
@@ -490,7 +499,7 @@ def val_step(model: torch.nn.Module,
 
     with torch.no_grad():
         # Loop through DataLoader batches
-        for batch, (X, y) in enumerate(dataloader):
+        for X, y in dataloader:
             X, y = X.to(device), y.to(device)
 
             # Add an extra dimension to the target tensor
@@ -523,6 +532,7 @@ def plot_loss_acc_curves(model_folder: str):
     val_accuracy = model_results["val_acc"]
 
     epochs = range(len(model_results["train_loss"]))
+    print(model_results)
 
     plt.figure(figsize=(15, 7))
 

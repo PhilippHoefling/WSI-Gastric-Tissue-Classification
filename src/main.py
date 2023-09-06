@@ -11,7 +11,7 @@ import torch
 if __name__ == "__main__":
     # Define dataset paths
     dataset_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/TissueTiles'
-    model_folder = "models/TransferLearning_model_17082023_1807"
+    model_folder = "models/TransferLearning_model_05092023_1428"
     test_folder = "data/TissueTiles/val"
     tf_model ="imagenet"
     single_image_path = 'data/Processed/test/64HE d-5_x-2740_y-118040_w-2560_h-2560_antrum.png'
@@ -21,8 +21,8 @@ if __name__ == "__main__":
     #num_images = 6
 
     # Set if you want to train a new model or which evualation you want to make on an existing model
-    train_model = True
-    test_existing_model = False
+    train_model = False
+    test_existing_model = True
     preprocess = False
     plot_data_distribution = False
     prediction_on_image = False

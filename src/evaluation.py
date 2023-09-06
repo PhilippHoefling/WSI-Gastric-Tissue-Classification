@@ -148,11 +148,11 @@ def print_model_metrices(model_folder: str, test_folder: str):
     print("F1 Score on test set " + str(f1_score(y_test, predictions, average='macro')))
     # print("Log-Loss on test set " + str(log_loss(y_test, predictions)))
     print(probabilities)
-    plot_roc_curve( y_test, probabilities)
+    plot_roc_curve(model_folder=model_folder, y_true=y_test, y_scores=probabilities)
 
 
     #plot_roc_curve(y_test,target_image_pred_probs)
-def plot_roc_curve(y_true, y_scores, title='ROC Curve'):
+def plot_roc_curve(model_folder, y_true, y_scores, title='ROC Curve'):
 
 
     fpr, tpr, thresholds = roc_curve(y_true, y_scores)
@@ -170,6 +170,6 @@ def plot_roc_curve(y_true, y_scores, title='ROC Curve'):
     plt.title(title)
     plt.legend(loc="lower right")
 
-
+    plt.savefig(model_folder + '/test_ROC_curve.png')
     plt.show()
 
