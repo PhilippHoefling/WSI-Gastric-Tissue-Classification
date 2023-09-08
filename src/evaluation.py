@@ -76,12 +76,12 @@ def pred_on_single_image(single_image_path, model_folder: str):
     # (using torch.softmax() for multi-class classification)
     _, predicted_idx = torch.max(target_image_pred, 1)
 
-    target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
+    target_image_pred_probs = torch.sigmoid(target_image_pred).item()
     prediction_label = class_names[predicted_idx]
 
     image = Image.open(single_image_path)
     plt.imshow(np.array(image))
-    plt.title(f"Prediction: {prediction_label}" + "  Probabilities " + str(target_image_pred_probs[0].tolist()))
+    plt.title(f"Prediction: {prediction_label}" + "  Probabilities " + str(target_image_pred_probs))
 
     plt.axis('off')
     plt.show()
