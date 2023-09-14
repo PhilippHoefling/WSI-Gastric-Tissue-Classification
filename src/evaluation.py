@@ -73,8 +73,10 @@ def pred_on_single_image(single_image_path, model_folder: str):
         target_image = target_image.unsqueeze(dim=0)
         # Make a prediction on image with an extra dimension
         target_image_pred = trained_model(target_image.cuda())
-    # (using torch.softmax() for multi-class classification)
+        print(target_image_pred)
+    # )
     _, predicted_idx = torch.max(target_image_pred, 1)
+
 
     target_image_pred_probs = torch.sigmoid(target_image_pred).item()
     prediction_label = class_names[predicted_idx]

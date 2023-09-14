@@ -5,23 +5,25 @@ from process import load_sort_data
 from evaluation import print_model_metrices, pred_on_single_image
 from process import plot_file_distribution
 from Tiling import TestonSlide
+from VisionTransformer import trainVIT
 import torchvision
 import torch
 
 if __name__ == "__main__":
     # Define dataset paths
     dataset_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/TissueTiles'
-    model_folder = "models/TransferLearning_model_05092023_1428"
-    test_folder = "data/TissueTiles/val"
+    model_folder = "models/TransferLearning_model_11092023_1441"
+    test_folder = "data/TissueTiles/test"
     tf_model ="imagenet"
     single_image_path = 'data/TissueTiles/test/corpus/47HE d-5_x-16540_y-3145_w-2560_h-2560_corpus.png'
-    test_slidepath = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/WSIs/100HE.mrxs'
+    test_slidepath = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/WSIs/94HE.mrxs'
 
     # Set parameter for testing
     #num_images = 6
 
     # Set if you want to train a new model or which evualation you want to make on an existing model
     train_model = False
+    train_vit = False
     test_existing_model = False
     preprocess = False
     plot_data_distribution = False
@@ -63,5 +65,7 @@ if __name__ == "__main__":
     if printLossCurves:
         logger.info("Start printing loss/accuracy curves...")
         plot_loss_acc_curves(model_folder=model_folder)  #%%
-
+    if train_vit:
+        logger.info("Start training Visual Transformer...")
+        trainVIT(dataset_path=dataset_path)
 #%%
