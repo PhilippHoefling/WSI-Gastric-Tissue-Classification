@@ -11,36 +11,8 @@ from pathlib import Path
 from loguru import logger
 from PIL import Image
 from config import config_hyperparameter as cfg_hp
-
-def get_model(model_folder: str):
-    # get model from model folder
-    onlyfiles = [f for f in os.listdir(model_folder) if os.path.isfile(os.path.join(model_folder, f))]
-    model_folder = Path(model_folder)
-
-
-    hyperparameters_path = model_folder.joinpath(onlyfiles[0])
-    model_path = model_folder.joinpath(onlyfiles[1])
-    results_path = model_folder.joinpath(onlyfiles[2])
-    summary_path = model_folder.joinpath(onlyfiles[3])
-
-    with open(model_path, "rb") as fid:
-        classifier_model = pickle.load(fid)
-
-    with open(results_path, "rb") as fid:
-        results = pickle.load(fid)
-
-    with open(hyperparameters_path, "rb") as fid:
-        dict = pickle.load(fid)
-
-    with open(summary_path, "rb") as fid:
-        summary = pickle.load(fid)
-
-    logger.info("Model and hyperparameters loaded!")
-    logger.info("The model is trained with the following hyperparameters:")
-    logger.info(dict)
-
-    return classifier_model, results, dict, summary
-
+import csv
+from auxiliaries import get_model
 
 
 def pred_on_single_image(single_image_path, model_folder: str):
@@ -89,14 +61,16 @@ def pred_on_single_image(single_image_path, model_folder: str):
     plt.show()
 
 
-def print_model_metrices(model_folder: str, test_folder: str):
+def print_model_metrices(model_folder: str, test_folder: str, safe_wrong_preds: bool):
     trained_model, model_results, dict_hyperparameters, summary = get_model(model_folder)
     image_path_list = list(Path(test_folder).glob("*/*.*"))
     class_names = cfg_hp["class_names"]
     accuracy = []
-    probabilities = []
     predictions = []
     y_test = []
+    false_pred_path = []
+    prob_distibution = []
+    probabilities = []
 
     for image_path in image_path_list:
         # Load in image and convert the tensor values to float32
@@ -121,24 +95,43 @@ def print_model_metrices(model_folder: str, test_folder: str):
 
             # Make a prediction on image with an extra dimension
             target_image_pred = trained_model(target_image.cuda())
+            target_image_pred_probs = torch.sigmoid(target_image_pred).round()
+
             probabilities.append(torch.sigmoid(target_image_pred).item())
         # Convert logits -> prediction probabilities
         # (using torch.softmax() for multi-class classification)
         #target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
-        target_image_pred_probs = torch.sigmoid(target_image_pred).round()
 
 
     # Convert prediction probabilities -> prediction labels
+
         target_image_pred_label = target_image_pred_probs.round()
         pred_class = class_names[int(target_image_pred_label)]
         true_class = image_path.parts[3]
+
+        prob_distibution.append([true_class , torch.sigmoid(target_image_pred)])
+
         predictions.append(target_image_pred_label.item())
         y_test.append(class_names.index(true_class))
         if pred_class == true_class:
             accuracy.append(1)
         else:
             accuracy.append(0)
+            false_pred_path.append(str(image_path))
 
+
+    #safe wrong predictions
+    if safe_wrong_preds:
+        with open("Val_Classification_Errors.csv", 'w', newline='') as csv_file:
+            # Create a CSV writer object
+            csv_writer = csv.writer(csv_file)
+
+            # Write the string as a single-row CSV entry
+
+            csv_writer.writerow( false_pred_path)
+
+    print(y_test)
+    print(predictions)
     ConfusionMatrixDisplay.from_predictions(y_test, predictions, display_labels=class_names, cmap='Blues',
                                             colorbar=False)
     plt.savefig(model_folder + '/test_confusion_matrix.png')
@@ -149,9 +142,11 @@ def print_model_metrices(model_folder: str, test_folder: str):
     print("Recall on test set " + str(recall_score(y_test, predictions, average='macro')))
     print("F1 Score on test set " + str(f1_score(y_test, predictions, average='macro')))
     # print("Log-Loss on test set " + str(log_loss(y_test, predictions)))
-    print(probabilities)
+
+
     plot_roc_curve(model_folder=model_folder, y_true=y_test, y_scores=probabilities)
 
+    plot_prob_distribution(model_folder=model_folder,  prob_distibution=prob_distibution)
 
     #plot_roc_curve(y_test,target_image_pred_probs)
 def plot_roc_curve(model_folder, y_true, y_scores, title='ROC Curve'):
@@ -175,3 +170,22 @@ def plot_roc_curve(model_folder, y_true, y_scores, title='ROC Curve'):
     plt.savefig(model_folder + '/test_ROC_curve.png')
     plt.show()
 
+def plot_prob_distribution(model_folder, prob_distibution):
+    # Find unique Classes
+    unique_classes = list(set([entry[0] for entry in prob_distibution]))
+
+    plt.figure(figsize=(12, 8))
+
+    for true_class in unique_classes:
+        target_probs = [entry[1] for entry in prob_distibution if entry[0] == true_class]
+        # Since target_image_pred_probs is a tensor, we need to convert it to a numpy array and flatten it.
+        flat_probs = [prob.item() for sublist in target_probs for prob in sublist.cpu().numpy().flatten()]
+        plt.hist(flat_probs, bins=30, alpha=0.6, label=f"Class {true_class}")
+
+    plt.title("Distribution of Predicted Probabilities for Each True Class")
+    plt.xlabel("Probability")
+    plt.ylabel("Frequency")
+    plt.legend(loc='upper right')
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.show()
+#%%

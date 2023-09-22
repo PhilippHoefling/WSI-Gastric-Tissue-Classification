@@ -12,7 +12,7 @@ import torch
 if __name__ == "__main__":
     # Define dataset paths
     dataset_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/TissueTiles'
-    model_folder = "models/TransferLearning_model_11092023_1441"
+    model_folder = "models/TransferLearning_model_19092023_2040"
     test_folder = "data/TissueTiles/test"
     tf_model ="imagenet"
     single_image_path = 'data/TissueTiles/test/corpus/47HE d-5_x-16540_y-3145_w-2560_h-2560_corpus.png'
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     if preprocess:
         logger.info("Start preprocessing data...")
-        load_sort_data("D:/DigPatEnzündung/tiles",dataset_path)
+        load_sort_data("D:/DigPatTissue2/tiles",dataset_path)
         logger.info("Congratulations, the preprocessing was successful!")
 
     if train_model:
@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     if test_existing_model:
         logger.info("Start testing the model..")
-        print_model_metrices(model_folder=model_folder, test_folder=test_folder)   #%%
+        print_model_metrices(model_folder=model_folder, test_folder=test_folder, safe_wrong_preds=True)   #%%
 
     if plot_data_distribution:
         logger.info("Start analyzing dataset..")

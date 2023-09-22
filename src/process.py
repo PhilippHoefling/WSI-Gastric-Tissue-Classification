@@ -29,7 +29,7 @@ def load_sort_data(src_dir, dst_dir):
     # Set the random seed
     np.random.seed(cfg_hp["seed"])
 
-    labels = 'corpus','antrum'
+    labels = 'corpus','antrum', 'intermediate'
 
 
     folders, num_folders = loading(src_dir)
@@ -46,14 +46,14 @@ def load_sort_data(src_dir, dst_dir):
     }
 
     # Open the CSV file in write mode
-    #with open("data_split.csv", 'w', newline='') as csv_file:
-    #    # Create a CSV writer object
-    #    csv_writer = csv.writer(csv_file)
+    with open("data_split.csv", 'w', newline='') as csv_file:
+        # Create a CSV writer object
+        csv_writer = csv.writer(csv_file)
 
-    #    # Write the string as a single-row CSV entry
-    #    csv_writer.writerow(["train: " + str(train)])
-    #    csv_writer.writerow(["val: " + str(validate)])
-    #    csv_writer.writerow(["test: " + str(test)])
+        # Write the string as a single-row CSV entry
+        csv_writer.writerow(["train: " + str(train)])
+        csv_writer.writerow(["val: " + str(validate)])
+        csv_writer.writerow(["test: " + str(test)])
 
 
     #load and sort all tiles from tileexporter in the according folder
@@ -139,7 +139,7 @@ def is_white_or_grey_png(image_path, threshold=0.95):
     # Check if the white/grey percentage is above the threshold
     return white_or_grey_percentage < threshold
 
-# Usage example
+
 
 
 

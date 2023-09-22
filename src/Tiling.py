@@ -3,16 +3,18 @@ from PIL import Image
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from evaluation import get_model
 
 import torch
 import torchvision
+from skimage.measure import shannon_entropy
 from torchvision import transforms
+from process import is_white_or_grey_png
+
 
 from config import config_hyperparameter as cfg_hp
 import torch.nn as nn
 import torch.optim as optim
-
+from auxiliaries import get_model, image_entropy
 
 
 #workaround for Openslide import
@@ -47,43 +49,80 @@ def TestonSlide(model_folder: str, slidepath: str):
     #open slide with openslide
     slide = openslide.open_slide(slidepath)
 
-    tiles = deepzoom.DeepZoomGenerator(slide, tile_size=256, overlap=0, limit_bounds=False)
+    tiles = deepzoom.DeepZoomGenerator(slide, tile_size=224, overlap=112, limit_bounds=False)
 
     col, rows= tiles.level_tiles[15]
-    predictions = np.empty([col,rows])
+    predictions = np.empty([rows,col])
+    entropy = np.empty([rows,col])
+
     for c in range(col):
         for r in range(rows):
             single_tile=tiles.get_tile(15,(c, r))
 
             #single_tile.save(str(c) + " "+ str(r) +".png", "PNG")
 
-            with torch.inference_mode():
-                # Add an extra dimension to the image
-                single_tile = manual_transforms(single_tile).unsqueeze(dim=0)
+            entropy[r][c]= shannon_entropy(single_tile)
 
-                # Divide the image pixel values by 255 to get them between [0, 1]
-                #target_image = single_tile / 255
+            if entropy[r][c] > 3:
+                with torch.inference_mode():
+                    # Add an extra dimension to the image
+                    single_tile = manual_transforms(single_tile).unsqueeze(dim=0)
 
-                # Make a prediction on image with an extra dimension
-                target_image_pred = trained_model(single_tile.cuda())
+                    # Divide the image pixel values by 255 to get them between [0, 1]
+                    #target_image = single_tile / 255
 
-            target_image_pred_probs = torch.sigmoid(target_image_pred)
-            predictions[c][r]= target_image_pred_probs.tolist()[0][0]
-            print(predictions)
+                    # Make a prediction on image with an extra dimension
+                    target_image_pred = trained_model(single_tile.cuda())
+
+                target_image_pred_probs = torch.sigmoid(target_image_pred)
+                predictions[r][c]= target_image_pred_probs.tolist()[0][0]
+            else:
+                predictions[r][c] =-1
 
     #Visualize Results in a Heatmap
-    SlideHeatmap(predictions=predictions)
-    #
-def SlideHeatmap(predictions: np.array):
-    # Create a heatmap using matplotlib
-    plt.imshow(np.rot90(predictions), cmap='viridis', interpolation='nearest')
+    SlideHeatmap(heatmap_data=predictions)
 
+    print("heatmap Entropy")
+
+    SlideHeatmap(heatmap_data=entropy)
+def SlideHeatmap(heatmap_data: np.array):
+    # Create a heatmap using matplotlib
+    plt.imshow(heatmap_data, cmap='viridis', interpolation='nearest')
     # Add colorbar to indicate values
     plt.colorbar()
 
     # Show the plot
     plt.show()
 
+def is_white_or_grey_png(image: Image.Image, threshold=0.95):
+    """
+    Checks if the given PIL image has a high percentage of white or grey pixels.
+
+    Parameters:
+    - image: A PIL.Image.Image instance.
+    - threshold: The percentage threshold to determine if an image is mostly white or grey.
+
+    Returns:
+    - True if the image's white or grey percentage is less than the given threshold, otherwise False.
+    """
+
+    # Convert the image to grayscale for easy white/grey detection
+    grayscale_image = image.convert("L")
+
+    # Get the pixel data from the image
+    pixels = grayscale_image.load()
+
+    # Get the image size
+    width, height = image.size
+
+    # Count the number of white/grey pixels in the image
+    white_or_grey_pixel_count = sum(pixels[x, y] >= 200 for x in range(width) for y in range(height))
+
+    # Calculate the percentage of white/grey pixels in the image
+    white_or_grey_percentage = white_or_grey_pixel_count / float(width * height)
+
+    # Check if the white/grey percentage is above the threshold
+    return white_or_grey_percentage < threshold
 
 # Define a simple Aggregation Network
 class AggregationNetwork(nn.Module):

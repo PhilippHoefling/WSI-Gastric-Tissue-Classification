@@ -31,8 +31,8 @@ from torchvision.models.resnet import Bottleneck, ResNet
 from evaluation import get_model
 
 from pathlib import Path
-from auxiliaries import store_hyperparameters, store_model, plot_loss_acc_curves
-from BaseLine_AntrumCorpus import train
+from auxiliaries import store_model
+
 
 def get_pretrained_url(key):
     URL_PREFIX = "https://github.com/lunit-io/benchmark-ssl-pathology/releases/download/pretrained-weights"
@@ -47,6 +47,7 @@ class VisionTransformerWithCustomHead(nn.Module):
     def __init__(self, model, num_classes):
         super(VisionTransformerWithCustomHead, self).__init__()
         self.model = model  # The ViT model without the head
+        embed_dim = self.model.embed_dim  # Extracting the embed_dim
         self.head = nn.Linear(384, num_classes)  # Modify the output size accordingly
 
     def forward(self, x):
@@ -189,5 +190,179 @@ def loading(folder_name: str):
         folder_name)
     return os.listdir(direc), len(os.listdir(direc))
 
+def train(target_dir_new_model: str,
+          tf_model: bool,
+          model_name: str,
+          model: torch.nn.Module,
+          train_dataloader: torch.utils.data.DataLoader,
+          val_dataloader: torch.utils.data.DataLoader,
+          optimizer: torch.optim.Optimizer,
+          scheduler: torch.optim.lr_scheduler,
+          loss_fn: torch.nn.Module,
+          batch_size: int,
+          epochs: int,
+          hyperparameter_dict: dict,
+          device
+          ) -> Dict[str, List]:
+    '''
+    Iteration over each epoch for training and validation of the select model. It also calls early stopping if the model
+    does not improve over [patience] number of epochs.
+    return: Results and the directory of the new trained model
+    '''
+
+    # Create empty results dictionary
+    results = {"train_loss": [],
+               "train_acc": [],
+               "val_loss": [],
+               "val_acc": []
+               }
+
+    # Start the timer
+    start_time = timer()
+
+    dateTimeObj = datetime.now()
+    timestampStr = dateTimeObj.strftime("%d%m%Y_%H%M")
+
+    # Auxilary variables
+    early_stopping = 0
+    max_acc = 0
+    trained_epochs = 0
+    model_folder = ''
+
+    # Loop through training and valing steps for a number of epochs
+    for epoch in tqdm(range(epochs)):
+        trained_epochs = epoch + 1
+        train_loss, train_acc = train_step(model=model,
+                                           dataloader=train_dataloader,
+                                           loss_fn=loss_fn,
+                                           optimizer=optimizer,
+                                           scheduler=scheduler,
+                                           device=device
+                                           )
+        val_loss, val_acc = val_step(model=model,
+                                     dataloader=val_dataloader,
+                                     loss_fn=loss_fn,
+                                     device=device
+                                     )
+
+        # Print out what's happening
+        print(
+            f"\nEpoch: {epoch + 1} | "
+            f"train_loss: {train_loss:.4f} | "
+            f"train_acc: {train_acc:.4f} | "
+            f"val_loss: {val_loss:.4f} | "
+            f"val_acc: {val_acc:.4f}"
+        )
+
+        # Update results dictionary
+        results["train_loss"].append(train_loss)
+        results["train_acc"].append(train_acc)
+        results["val_loss"].append(val_loss)
+        results["val_acc"].append(val_acc)
+
+        # Early Stopping
+        max_acc = max(results["val_acc"])
+        if results["val_acc"][-1] < max_acc:
+            early_stopping = early_stopping + 1
+        else:
+            # End the timer and print out how long it took
+            end_time = timer()
+
+            time.sleep(10)
+            total_train_time = end_time - start_time
+            model_folder = store_model(target_dir_new_model, tf_model, model_name, hyperparameter_dict, trained_epochs,
+                                       model, results, batch_size, total_train_time, timestampStr)
+            early_stopping = 0
+
+        if epoch < 9:
+            early_stopping = 0
+
+        if early_stopping == cfg_hp["patience"]:
+            break
+        else:
+            continue
+
+    return results, model_folder
+
+def train_step(model: torch.nn.Module,
+               dataloader: torch.utils.data.DataLoader,
+               loss_fn: torch.nn.Module,
+               optimizer: torch.optim.Optimizer,
+               scheduler: torch.optim.lr_scheduler,
+               device: torch.device
+               ) -> Tuple[float, float]:
+    '''
+    Train step for the selected model (Baseline or Transfer Learning model) and calculating the train loss
+    return: Train loss
+    '''
+
+    model.train()  # Set model to training mode
+    total_loss = 0.0
+    correct_predictions = 0
+    total_samples = 0
+
+    for data, labels in dataloader:
+        data, labels = data.to(device), labels.to(device)
+
+        optimizer.zero_grad()  # Reset gradients
+
+        # Add an extra dimension to the target tensor
+        labels = labels.unsqueeze(1).float()
+
+        outputs = model(data)  # Forward pass
+        loss = loss_fn(outputs, labels)  # Compute loss
+        loss.backward()  # Backward pass
+        optimizer.step()  # Update parameters
+
+        # Update the learning rate
+        #scheduler.step()
+
+        total_loss += loss.item()
+
+        predicted = torch.sigmoid(outputs).round()
+        correct_predictions += (predicted == labels).sum().item()
+        total_samples += labels.size(0)
+
+
+
+    average_loss = total_loss / len(dataloader)
+    accuracy = correct_predictions / total_samples
+    return average_loss, accuracy
+
+
+def val_step(model: torch.nn.Module,
+             dataloader: torch.utils.data.DataLoader,
+             loss_fn: torch.nn.Module,
+             device: torch.device
+             ) -> Tuple[float, float]:
+    '''
+    Validation step for the selected model (Baseline or Transfer Learning model) and calculating the validation loss
+    return: Validation loss
+    '''
+    model.eval()  # set the model to evaluation mode
+    total_loss = 0.0
+    correct_predictions = 0
+    total_samples = 0
+
+    with torch.no_grad():  # disable gradient computation during validation
+        for data, labels in dataloader:
+            data, labels = data.to(device), labels.to(device)
+
+            # forward pass
+            outputs = model(data)
+
+            # compute loss
+            loss = loss_fn(outputs, labels.unsqueeze(1).float())
+            total_loss += loss.item()
+
+            # compute number of correct predictions
+            predicted = torch.sigmoid(outputs).round()
+            correct_predictions += (predicted == labels.unsqueeze(1)).sum().item()
+            total_samples += labels.size(0)
+
+    average_loss = total_loss / len(dataloader)
+    accuracy = correct_predictions / total_samples
+
+    return average_loss, accuracy
 
 #%%

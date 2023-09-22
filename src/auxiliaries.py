@@ -2,6 +2,7 @@ import os
 import math
 import copy
 
+import cv2
 import pandas as pd
 import numpy as np
 import shutil
@@ -26,7 +27,7 @@ import torchvision
 from torch import nn
 from sklearn.metrics import accuracy_score
 from torchvision.models.resnet import Bottleneck, ResNet
-from evaluation import get_model
+
 
 from pathlib import Path
 
@@ -181,3 +182,60 @@ def store_model(target_dir_new_model: str, tf_model: bool, model_name: str, hype
     logger.info("Model stored!")
 
     return folderpath
+
+def image_entropy(img):
+    """Calculate the entropy of an image"""
+    # Load the image in color (adjust path accordingly)
+
+    image_np = np.array(img)
+
+    # Convert RGB to BGR
+    image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+
+
+#img = cv2.imread(img_path)
+
+    channels = cv2.split(image_bgr)
+    entropy = []
+
+    for ch in channels:
+        hist = cv2.calcHist([ch], [0], None, [256], [0,256])
+        hist /= hist.sum()
+        # Calculate entropy for this channel
+        ch_entropy = -np.sum(hist*np.log2(hist + np.finfo(float).eps))
+        entropy.append(ch_entropy)
+
+
+    # Average the entropies of the channels
+    entropy /= 3.0
+
+    return entropy[2]
+
+def get_model(model_folder: str):
+    # get model from model folder
+    onlyfiles = [f for f in os.listdir(model_folder) if os.path.isfile(os.path.join(model_folder, f))]
+    model_folder = Path(model_folder)
+
+
+    hyperparameters_path = model_folder.joinpath(onlyfiles[0])
+    model_path = model_folder.joinpath(onlyfiles[1])
+    results_path = model_folder.joinpath(onlyfiles[2])
+    summary_path = model_folder.joinpath(onlyfiles[3])
+
+    with open(model_path, "rb") as fid:
+        classifier_model = pickle.load(fid)
+
+    with open(results_path, "rb") as fid:
+        results = pickle.load(fid)
+
+    with open(hyperparameters_path, "rb") as fid:
+        dict = pickle.load(fid)
+
+    with open(summary_path, "rb") as fid:
+        summary = pickle.load(fid)
+
+    logger.info("Model and hyperparameters loaded!")
+    logger.info("The model is trained with the following hyperparameters:")
+    logger.info(dict)
+
+    return classifier_model, results, dict, summary

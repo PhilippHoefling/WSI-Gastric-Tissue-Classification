@@ -105,14 +105,48 @@ if __name__ == "__main__":
     model = resnet50(pretrained=True, progress=False, key="BT")
     print(model)
 #%%
-
-import numpy as np
-from sklearn import metrics
-import pickle
-import matplotlib.pyplot as plt
-from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, roc_auc_score
 import torch
 
-x =torch.rand(1, 100)
-print(x)
+torch.cuda.empty_cache()
+#%%
+import os
+
+folder_path = "C:/Users/phili/OneDrive/Masterarbeit/jsons"  # Replace with the actual path to your folder
+
+def delete_small_json_files(folder_path):
+    delteted_files = 0
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+
+        # Check if the file is a JSON file and its size is 3 bytes or less
+        if filename.endswith('.json') and os.path.getsize(file_path) <= 3:
+            print(f"Deleting {file_path}...")
+            os.remove(file_path)
+            delteted_files =+1
+            print(f"{filename} deleted.")
+    print("total files deleated" + str(delteted_files))
+
+if os.path.exists(folder_path) and os.path.isdir(folder_path):
+    delete_small_json_files(folder_path)
+    print("Deletion process completed.")
+else:
+    print(f"The folder {folder_path} does not exist.")
+#%%
+import os
+
+def delete_empty_folders(folder_path):
+    for root, dirs, files in os.walk(folder_path, topdown=False):
+        for dir_name in dirs:
+            dir_path = os.path.join(root, dir_name)
+            if not os.listdir(dir_path):  # Check if the folder is empty
+                print(f"Deleting empty folder: {dir_path}")
+                os.rmdir(dir_path)  # Remove the empty folder
+
+folder_to_clean = "D:/DigPatTissue2/tiles"  # Replace with the actual path to your folder
+
+if os.path.exists(folder_to_clean) and os.path.isdir(folder_to_clean):
+    delete_empty_folders(folder_to_clean)
+    print("Empty folder cleanup completed.")
+else:
+    print(f"The folder {folder_to_clean} does not exist.")
 #%%

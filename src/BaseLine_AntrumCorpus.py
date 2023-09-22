@@ -182,9 +182,9 @@ def train_new_model(dataset_path: str, tf_model: str):
 
                 # Define loss and optimizer
                 loss_fn = nn.BCEWithLogitsLoss()
-                optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=5e-4)
+                optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=1e-4)
 
-                #MultiStepLR learning rate scheduler
+                #learning rate scheduler
                 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20 , gamma=0.1)
 
 
@@ -313,92 +313,97 @@ def train_step(model: torch.nn.Module,
                loss_fn: torch.nn.Module,
                optimizer: torch.optim.Optimizer,
                scheduler: torch.optim.lr_scheduler,
-               device
+               device: torch.device
                ) -> Tuple[float, float]:
     '''
     Train step for the selected model (Baseline or Transfer Learning model) and calculating the train loss
-    return: Train loss
+    and accuracy
+    return: Train loss and Train accuracy
     '''
 
-    # Put model in train mode
+    # Set model to training mode
     model.train()
 
-    # Setup train loss and train accuracy values
-    train_loss, train_acc = 0, 0
+    total_loss = 0.0
+    correct_predictions = 0
+    total_samples = 0
 
-    # Loop through data loader data batches
-    for batch, (X, y) in enumerate(dataloader):
-        X, y = X.to(device), y.to(device)
+    for data, labels in dataloader:
+        # Move data and labels to the specified device (e.g., GPU)
+        data, labels = data.to(device), labels.to(device)
 
-        # Add an extra dimension to the target tensor
-        y = y.unsqueeze(1).float()
-
-        # 1. Forward pass
-        y_pred = model(X)
-
-        # 2. Calculate  and accumulate loss
-        loss = loss_fn(y_pred, y)
-        train_loss += loss.item()
-
-        # 3. Optimizer zero grad
+        # Reset gradients
         optimizer.zero_grad()
 
-        # 4. Loss backward
+        # Add an extra dimension to the target tensor
+        labels = labels.unsqueeze(1).float()
+
+        # Forward pass: compute predictions
+        outputs = model(data)
+
+        # Compute loss between the predicted outputs and labels
+        loss = loss_fn(outputs, labels)
+
+        # Compute gradients
         loss.backward()
 
-        # 5. Optimizer step
+        # Update the model parameters
         optimizer.step()
 
-        # Calculate and accumulate accuracy metric across all batches
-        y_pred_class = torch.sigmoid(y_pred).round()
-        train_acc += (y_pred_class == y).sum().item() / len(y_pred)
+        total_loss += loss.item()
 
-    # Adjust metrics to get average loss and accuracy per batch
+        # Predict class labels and count the number of correct predictions
+        predicted = torch.sigmoid(outputs).round()
+        correct_predictions += (predicted == labels).sum().item()
+        total_samples += labels.size(0)
+
+    # Adjust the learning rate based on the scheduler
     scheduler.step()
-    train_loss = train_loss / len(dataloader)
-    train_acc = train_acc / len(dataloader)
-    return train_loss, train_acc
+
+    average_loss = total_loss / len(dataloader)
+    accuracy = correct_predictions / total_samples
+    return average_loss, accuracy
 
 
 def val_step(model: torch.nn.Module,
              dataloader: torch.utils.data.DataLoader,
              loss_fn: torch.nn.Module,
-             device
+             device: torch.device
              ) -> Tuple[float, float]:
     '''
     Validation step for the selected model (Baseline or Transfer Learning model) and calculating the validation loss
-    return: Validation loss
+    and validation accuracy
+    return: Validation loss and validation accuracy
     '''
-    # Put model in eval mode
+    # Set the model to evaluation mode (affects dropout and batch normalization)
     model.eval()
 
-    # Setup val loss and val accuracy values
-    val_loss, val_acc = 0, 0
+    total_loss = 0.0
+    correct_predictions = 0
+    total_samples = 0
 
-
+    # Disable gradient computation during validation
     with torch.no_grad():
-        # Loop through DataLoader batches
-        for X, y in dataloader:
-            X, y = X.to(device), y.to(device)
+        for data, labels in dataloader:
+            # Move data and labels to the specified device (e.g., GPU)
+            data, labels = data.to(device), labels.to(device)
 
-            # Add an extra dimension to the target tensor
-            y = y.unsqueeze(1).float()
+            # Forward pass: compute predictions
+            outputs = model(data)
 
-            # 1. Forward pass
-            val_pred_logits = model(X)
+            # Compute loss between the predicted outputs and labels
+            loss = loss_fn(outputs, labels.unsqueeze(1).float())
+            total_loss += loss.item()
 
-            # 2. Calculate and accumulate loss
-            loss = loss_fn(val_pred_logits, y)
-            val_loss += loss.item()
+            # Predict class labels and count the number of correct predictions
+            predicted = torch.sigmoid(outputs).round()
+            correct_predictions += (predicted == labels.unsqueeze(1)).sum().item()
+            total_samples += labels.size(0)
 
-            # Calculate and accumulate accuracy
-            val_pred_labels =  torch.sigmoid(val_pred_logits).round()
-            val_acc += ((val_pred_labels == y).sum().item() / len(val_pred_labels))
+    average_loss = total_loss / len(dataloader)
+    accuracy = correct_predictions / total_samples
 
-    # Adjust metrics to get average loss and accuracy per batch
-    val_loss = val_loss / len(dataloader)
-    val_acc = val_acc / len(dataloader)
-    return val_loss, val_acc
+    return average_loss, accuracy
 
 
 
