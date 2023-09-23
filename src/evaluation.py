@@ -144,7 +144,7 @@ def print_model_metrices(model_folder: str, test_folder: str, safe_wrong_preds: 
     # print("Log-Loss on test set " + str(log_loss(y_test, predictions)))
 
 
-    plot_roc_curve(model_folder=model_folder, y_true=y_test, y_scores=probabilities)
+    #plot_roc_curve(model_folder=model_folder, y_true=y_test, y_scores=probabilities)
 
     plot_prob_distribution(model_folder=model_folder,  prob_distibution=prob_distibution)
 

@@ -6,5 +6,5 @@ config_hyperparameter = {
     "patience": 15,
     "epochs":40,
     "num_workers": 8,
-    "class_names": ['antrum','corpus']
+    "class_names": ['antrum','corpus','intermediate']
 }

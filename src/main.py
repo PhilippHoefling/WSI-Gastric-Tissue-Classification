@@ -24,11 +24,11 @@ if __name__ == "__main__":
     # Set if you want to train a new model or which evualation you want to make on an existing model
     train_model = False
     train_vit = False
-    test_existing_model = False
+    test_existing_model = True
     preprocess = False
     plot_data_distribution = False
     prediction_on_image = False
-    testonWSI =  True
+    testonWSI =  False
     printLossCurves = False
     #model_metrices = False
     #activate_Augmentation = False
