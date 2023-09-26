@@ -76,13 +76,13 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
 
 
     train_transforms = transforms.Compose([
-            transforms.Resize((224,224)),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(degrees=180),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ])
+        transforms.Resize((224,224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.RandomRotation(degrees=180),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
 
     val_transforms = transforms.Compose([
         transforms.Resize((224,224)),
@@ -148,7 +148,7 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
 
     return model
 
-def train_new_model(dataset_path: str, tf_model: str):
+def train_new_inf_model(dataset_path: str, tf_model: str):
     '''
     Initializes the directories of the dataset, stores the selected model type, chooses the availabe device, initialize the model,
     loads the data, adjustes the last layer of the model architecture, Initializes the loss and the optimizer, sets seeds.
@@ -181,7 +181,7 @@ def train_new_model(dataset_path: str, tf_model: str):
                 model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout= d)
 
                 # Define loss and optimizer
-                loss_fn = nn.MSELoss()
+                loss_fn = nn.BCEWithLogitsLoss()
                 optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=1e-4)
 
                 #learning rate scheduler
@@ -321,11 +321,6 @@ def train_step(model: torch.nn.Module,
     return: Train loss and Train accuracy
     '''
 
-    #fixed thresholds
-    t1 = 0.25
-    t2= 0.75
-
-
     # Set model to training mode
     model.train()
 
@@ -334,26 +329,20 @@ def train_step(model: torch.nn.Module,
     total_samples = 0
 
     for data, labels in dataloader:
-
-        #Convert labels to regression style floats
-        labels = labels.float() # Convert to float
-        labels[labels == 0] = 0.0
-        labels[labels == 1] = 0.5
-        labels[labels == 2] = 1.0
-
-
         # Move data and labels to the specified device (e.g., GPU)
         data, labels = data.to(device), labels.to(device)
 
         # Reset gradients
         optimizer.zero_grad()
 
+        # Add an extra dimension to the target tensor
+        labels = labels.unsqueeze(1).float()
+
         # Forward pass: compute predictions
         outputs = model(data)
 
-
         # Compute loss between the predicted outputs and labels
-        loss = loss_fn(outputs, labels.unsqueeze(1).float())
+        loss = loss_fn(outputs, labels)
 
         # Compute gradients
         loss.backward()
@@ -363,17 +352,9 @@ def train_step(model: torch.nn.Module,
 
         total_loss += loss.item()
 
-        # Calculate accuracy
-        predicted = outputs.squeeze().detach().cpu()
-        labels_cpu = labels.cpu()
-        predicted_classes = torch.zeros_like(predicted)
-
-        # Set class based on custom thresholds
-        predicted_classes[predicted < 0.25] = 0
-        predicted_classes[(predicted >= 0.25) & (predicted <= 0.75)] = 0.5
-        predicted_classes[predicted > 0.75] = 1
-
-        correct_predictions += (predicted_classes == labels_cpu).sum().item()
+        # Predict class labels and count the number of correct predictions
+        predicted = torch.sigmoid(outputs).round()
+        correct_predictions += (predicted == labels).sum().item()
         total_samples += labels.size(0)
 
     # Adjust the learning rate based on the scheduler
@@ -401,19 +382,9 @@ def val_step(model: torch.nn.Module,
     correct_predictions = 0
     total_samples = 0
 
-    #fixed thresholds
-    t1 = 0.25
-    t2= 0.75
-
     # Disable gradient computation during validation
     with torch.no_grad():
         for data, labels in dataloader:
-            #Convert labels to regression style floats
-            labels = labels.float() # Convert to float
-            labels[labels == 0] = 0.0
-            labels[labels == 1] = 0.5
-            labels[labels == 2] = 1.0
-
             # Move data and labels to the specified device (e.g., GPU)
             data, labels = data.to(device), labels.to(device)
 
@@ -421,27 +392,15 @@ def val_step(model: torch.nn.Module,
             outputs = model(data)
 
             # Compute loss between the predicted outputs and labels
-            loss = loss_fn(outputs, labels)
+            loss = loss_fn(outputs, labels.unsqueeze(1).float())
             total_loss += loss.item()
 
-            # Calculate accuracy
-            predicted = outputs.squeeze().detach().cpu()
-            labels_cpu = labels.cpu()
-            predicted_classes = torch.zeros_like(predicted)
-
-            # Set class based on custom thresholds
-            predicted_classes[predicted < 0.25] = 0
-            predicted_classes[(predicted >= 0.25) & (predicted <= 0.75)] = 0.5
-            predicted_classes[predicted > 0.75] = 1
-
-            correct_predictions += (predicted_classes == labels_cpu).sum().item()
+            # Predict class labels and count the number of correct predictions
+            predicted = torch.sigmoid(outputs).round()
+            correct_predictions += (predicted == labels.unsqueeze(1)).sum().item()
             total_samples += labels.size(0)
 
     average_loss = total_loss / len(dataloader)
     accuracy = correct_predictions / total_samples
 
     return average_loss, accuracy
-
-
-
-#%%

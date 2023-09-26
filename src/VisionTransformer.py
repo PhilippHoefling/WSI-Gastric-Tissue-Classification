@@ -1,5 +1,5 @@
 
-from timm.models.vision_transformer import VisionTransformer
+import timm
 import os
 import math
 import copy
@@ -43,31 +43,22 @@ def get_pretrained_url(key):
     pretrained_url = f"{URL_PREFIX}/{model_zoo_registry.get(key)}"
     return pretrained_url
 
-class VisionTransformerWithCustomHead(nn.Module):
-    def __init__(self, model, num_classes):
-        super(VisionTransformerWithCustomHead, self).__init__()
-        self.model = model  # The ViT model without the head
-        embed_dim = self.model.embed_dim  # Extracting the embed_dim
-        self.head = nn.Linear(384, num_classes)  # Modify the output size accordingly
 
-    def forward(self, x):
-        x = self.model(x)
-        x = self.head(x)
-        return x
 
 def vit_small(pretrained, progress, key, num_classes, **kwargs):
     patch_size = kwargs.get("patch_size", 16)
-    model = VisionTransformer(
-        img_size=224, patch_size=patch_size, embed_dim=384, num_heads=6, num_classes=0)
-    if pretrained:
-        pretrained_url = get_pretrained_url(key)
-        verbose = model.load_state_dict(
-            torch.hub.load_state_dict_from_url(pretrained_url, progress=progress)
-        )
-        print(verbose)
-    # Create an instance of VisionTransformerWithCustomHead
-    custom_model = VisionTransformerWithCustomHead(model, num_classes)
-    return custom_model
+    model =timm.create_model("vit_base_patch16_224", pretrained=True)
+    #VisionTransformer(
+    #    img_size=224, patch_size=patch_size, embed_dim=384, num_heads=6, num_classes=1, pretrained=True )
+    #if pretrained:
+        #pretrained_url = get_pretrained_url(key)
+        #verbose = model.load_state_dict(
+        #    torch.hub.load_state_dict_from_url(pretrained_url, progress=progress)
+        #)
+        #print(verbose)
+    # Modify Vision Transformer Head to Binary Output
+    model.head = nn.Linear(model.head.in_features, 1)
+    return model
 
 
 def trainVIT(dataset_path: str):
@@ -112,6 +103,7 @@ def trainVIT(dataset_path: str):
                                   device=device
                                   )
 
+    return model_folder
 
 
 def create_dataloaders(train_dir: str,
@@ -307,7 +299,7 @@ def train_step(model: torch.nn.Module,
         optimizer.zero_grad()  # Reset gradients
 
         # Add an extra dimension to the target tensor
-        labels = labels.unsqueeze(1).float()
+        labels = labels.float().unsqueeze(1)
 
         outputs = model(data)  # Forward pass
         loss = loss_fn(outputs, labels)  # Compute loss
@@ -319,7 +311,7 @@ def train_step(model: torch.nn.Module,
 
         total_loss += loss.item()
 
-        predicted = torch.sigmoid(outputs).round()
+        predicted = torch.round(torch.sigmoid(outputs))
         correct_predictions += (predicted == labels).sum().item()
         total_samples += labels.size(0)
 
@@ -348,15 +340,13 @@ def val_step(model: torch.nn.Module,
         for data, labels in dataloader:
             data, labels = data.to(device), labels.to(device)
 
-            # forward pass
+            labels = labels.float().unsqueeze(1)
             outputs = model(data)
+            loss = loss_fn(outputs, labels)
 
-            # compute loss
-            loss = loss_fn(outputs, labels.unsqueeze(1).float())
             total_loss += loss.item()
+            predicted = torch.round(torch.sigmoid(outputs))
 
-            # compute number of correct predictions
-            predicted = torch.sigmoid(outputs).round()
             correct_predictions += (predicted == labels.unsqueeze(1)).sum().item()
             total_samples += labels.size(0)
 

@@ -63,7 +63,7 @@ def TestonSlide(model_folder: str, slidepath: str):
 
             entropy[r][c]= shannon_entropy(single_tile)
 
-            if entropy[r][c] > 3:
+            if entropy[r][c] > 5.1:
                 with torch.inference_mode():
                     # Add an extra dimension to the image
                     single_tile = manual_transforms(single_tile).unsqueeze(dim=0)

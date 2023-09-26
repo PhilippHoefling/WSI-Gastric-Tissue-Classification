@@ -29,8 +29,8 @@ def load_sort_data(src_dir, dst_dir):
     # Set the random seed
     np.random.seed(cfg_hp["seed"])
 
-    labels = 'corpus','antrum', 'intermediate'
-
+    #labels = 'corpus','antrum', 'intermediate'
+    labels = '_inflamed','_noninflamed'
 
     folders, num_folders = loading(src_dir)
     npfol = np.array(folders)
@@ -115,7 +115,7 @@ def plot_file_distribution(dataset_path):
 
 
 
-def is_white_or_grey_png(image_path, threshold=0.95):
+def is_white_or_grey_png(image_path, threshold=0.90):
     try:
         image = Image.open(image_path)
     except IOError:

@@ -11,6 +11,7 @@ import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from loguru import logger
+import splitfolders
 from timeit import default_timer as timer
 from datetime import datetime
 from tqdm.auto import tqdm
@@ -25,11 +26,14 @@ from typing import Dict, List, Tuple
 import torchvision
 from torch import nn
 from sklearn.metrics import accuracy_score
-from auxiliaries import store_hyperparameters, store_model, plot_loss_acc_curves
+from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, auc
+
+
 from torchvision.models.resnet import Bottleneck, ResNet
-from evaluation import get_model
 
 from pathlib import Path
+from evaluation import get_model
+from auxiliaries import  store_model
 
 def create_dataloaders(train_dir: str,
                        val_dir: str,
@@ -67,6 +71,7 @@ def create_dataloaders(train_dir: str,
 
     return train_dataloader, val_dataloader, class_names
 
+
 #manualtransformation placeholder for augmentation
 def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
     '''
@@ -76,13 +81,13 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
 
 
     train_transforms = transforms.Compose([
-            transforms.Resize((224,224)),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(degrees=180),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ])
+        transforms.Resize((224,224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.RandomRotation(degrees=180),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
 
     val_transforms = transforms.Compose([
         transforms.Resize((224,224)),
@@ -102,11 +107,12 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
 
 
 
+
+
 def loading(folder_name: str):
     direc = os.path.join(
         folder_name)
     return os.listdir(direc), len(os.listdir(direc))
-
 
 
 def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int):
@@ -134,7 +140,7 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between
     model.fc = torch.nn.Sequential(
-        torch.nn.Linear(in_features=num_ftrs, out_features=1))
+        torch.nn.Linear(in_features=num_ftrs, out_features=3))
 
 
     # Unfreeze all the layers
@@ -148,7 +154,7 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
 
     return model
 
-def train_new_model(dataset_path: str, tf_model: str):
+def train_new_3model(dataset_path: str, tf_model: str):
     '''
     Initializes the directories of the dataset, stores the selected model type, chooses the availabe device, initialize the model,
     loads the data, adjustes the last layer of the model architecture, Initializes the loss and the optimizer, sets seeds.
@@ -181,7 +187,7 @@ def train_new_model(dataset_path: str, tf_model: str):
                 model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout= d)
 
                 # Define loss and optimizer
-                loss_fn = nn.MSELoss()
+                loss_fn = nn.CrossEntropyLoss()
                 optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=1e-4)
 
                 #learning rate scheduler
@@ -213,7 +219,6 @@ def train_new_model(dataset_path: str, tf_model: str):
                                               device=device
                                               )
         return model_folder
-
 def train(target_dir_new_model: str,
           tf_model: bool,
           model_name: str,
@@ -221,7 +226,6 @@ def train(target_dir_new_model: str,
           train_dataloader: torch.utils.data.DataLoader,
           val_dataloader: torch.utils.data.DataLoader,
           optimizer: torch.optim.Optimizer,
-          scheduler: torch.optim.lr_scheduler,
           loss_fn: torch.nn.Module,
           batch_size: int,
           epochs: int,
@@ -260,7 +264,6 @@ def train(target_dir_new_model: str,
                                            dataloader=train_dataloader,
                                            loss_fn=loss_fn,
                                            optimizer=optimizer,
-                                           scheduler=scheduler,
                                            device=device
                                            )
         val_loss, val_acc = val_step(model=model,
@@ -296,6 +299,7 @@ def train(target_dir_new_model: str,
             total_train_time = end_time - start_time
             model_folder = store_model(target_dir_new_model, tf_model, model_name, hyperparameter_dict, trained_epochs,
                                        model, results, batch_size, total_train_time, timestampStr)
+
             early_stopping = 0
 
         if epoch < 9:
@@ -312,136 +316,142 @@ def train_step(model: torch.nn.Module,
                dataloader: torch.utils.data.DataLoader,
                loss_fn: torch.nn.Module,
                optimizer: torch.optim.Optimizer,
-               scheduler: torch.optim.lr_scheduler,
-               device: torch.device
+               device
                ) -> Tuple[float, float]:
     '''
     Train step for the selected model (Baseline or Transfer Learning model) and calculating the train loss
-    and accuracy
-    return: Train loss and Train accuracy
+    return: Train loss
     '''
 
-    #fixed thresholds
-    t1 = 0.25
-    t2= 0.75
-
-
-    # Set model to training mode
+    # Put model in train mode
     model.train()
 
-    total_loss = 0.0
-    correct_predictions = 0
-    total_samples = 0
+    # Setup train loss and train accuracy values
+    train_loss, train_acc = 0, 0
 
-    for data, labels in dataloader:
+    # Loop through data loader data batches
+    for batch, (X, y) in enumerate(dataloader):
+        X, y = X.to(device), y.to(device)
 
-        #Convert labels to regression style floats
-        labels = labels.float() # Convert to float
-        labels[labels == 0] = 0.0
-        labels[labels == 1] = 0.5
-        labels[labels == 2] = 1.0
+        # 1. Forward pass
+        y_pred = model(X)
 
+        # 2. Calculate  and accumulate loss
+        loss = loss_fn(y_pred, y)
+        train_loss += loss.item()
 
-        # Move data and labels to the specified device (e.g., GPU)
-        data, labels = data.to(device), labels.to(device)
-
-        # Reset gradients
+        # 3. Optimizer zero grad
         optimizer.zero_grad()
 
-        # Forward pass: compute predictions
-        outputs = model(data)
-
-
-        # Compute loss between the predicted outputs and labels
-        loss = loss_fn(outputs, labels.unsqueeze(1).float())
-
-        # Compute gradients
+        # 4. Loss backward
         loss.backward()
 
-        # Update the model parameters
+        # 5. Optimizer step
         optimizer.step()
 
-        total_loss += loss.item()
+        # Calculate and accumulate accuracy metric across all batches
+        y_pred_class = torch.argmax(torch.softmax(y_pred, dim=1), dim=1)
+        train_acc += (y_pred_class == y).sum().item() / len(y_pred)
 
-        # Calculate accuracy
-        predicted = outputs.squeeze().detach().cpu()
-        labels_cpu = labels.cpu()
-        predicted_classes = torch.zeros_like(predicted)
-
-        # Set class based on custom thresholds
-        predicted_classes[predicted < 0.25] = 0
-        predicted_classes[(predicted >= 0.25) & (predicted <= 0.75)] = 0.5
-        predicted_classes[predicted > 0.75] = 1
-
-        correct_predictions += (predicted_classes == labels_cpu).sum().item()
-        total_samples += labels.size(0)
-
-    # Adjust the learning rate based on the scheduler
-    scheduler.step()
-
-    average_loss = total_loss / len(dataloader)
-    accuracy = correct_predictions / total_samples
-    return average_loss, accuracy
-
-
+    # Adjust metrics to get average loss and accuracy per batch
+    train_loss = train_loss / len(dataloader)
+    train_acc = train_acc / len(dataloader)
+    return train_loss, train_acc
 def val_step(model: torch.nn.Module,
              dataloader: torch.utils.data.DataLoader,
              loss_fn: torch.nn.Module,
-             device: torch.device
+             device
              ) -> Tuple[float, float]:
     '''
     Validation step for the selected model (Baseline or Transfer Learning model) and calculating the validation loss
-    and validation accuracy
-    return: Validation loss and validation accuracy
+    return: Validation loss
     '''
-    # Set the model to evaluation mode (affects dropout and batch normalization)
+    # Put model in eval mode
     model.eval()
 
-    total_loss = 0.0
-    correct_predictions = 0
-    total_samples = 0
+    # Setup val loss and val accuracy values
+    val_loss, val_acc = 0, 0
 
-    #fixed thresholds
-    t1 = 0.25
-    t2= 0.75
+    # Turn on inference context manager
+    with torch.inference_mode():
+        # Loop through DataLoader batches
+        for batch, (X, y) in enumerate(dataloader):
+            X, y = X.to(device), y.to(device)
 
-    # Disable gradient computation during validation
-    with torch.no_grad():
-        for data, labels in dataloader:
-            #Convert labels to regression style floats
-            labels = labels.float() # Convert to float
-            labels[labels == 0] = 0.0
-            labels[labels == 1] = 0.5
-            labels[labels == 2] = 1.0
+            # 1. Forward pass
+            val_pred_logits = model(X)
 
-            # Move data and labels to the specified device (e.g., GPU)
-            data, labels = data.to(device), labels.to(device)
+            # 2. Calculate and accumulate loss
+            loss = loss_fn(val_pred_logits, y)
+            val_loss += loss.item()
 
-            # Forward pass: compute predictions
-            outputs = model(data)
+            # Calculate and accumulate accuracy
+            val_pred_labels = val_pred_logits.argmax(dim=1)
+            val_acc += ((val_pred_labels == y).sum().item() / len(val_pred_labels))
 
-            # Compute loss between the predicted outputs and labels
-            loss = loss_fn(outputs, labels)
-            total_loss += loss.item()
+    # Adjust metrics to get average loss and accuracy per batch
+    val_loss = val_loss / len(dataloader)
+    val_acc = val_acc / len(dataloader)
+    return val_loss, val_acc
 
-            # Calculate accuracy
-            predicted = outputs.squeeze().detach().cpu()
-            labels_cpu = labels.cpu()
-            predicted_classes = torch.zeros_like(predicted)
+def print_3model_metrices(model_folder, test_folder):
+    trained_model, model_results, dict_hyperparameters, summary = get_model(Path(model_folder))
+    image_path_list = list(Path(test_folder).glob("*/*.*"))
+    class_names = cfg_hp["class_names"]
+    accuracy = []
+    predictions = []
+    y_test = []
 
-            # Set class based on custom thresholds
-            predicted_classes[predicted < 0.25] = 0
-            predicted_classes[(predicted >= 0.25) & (predicted <= 0.75)] = 0.5
-            predicted_classes[predicted > 0.75] = 1
+    for image_path in image_path_list:
+        # Load in image and convert the tensor values to float32
+        target_image = torchvision.io.read_image(str(image_path)).type(torch.float32)
 
-            correct_predictions += (predicted_classes == labels_cpu).sum().item()
-            total_samples += labels.size(0)
+        # Divide the image pixel values by 255 to get them between [0, 1]
+        target_image = target_image / 255
 
-    average_loss = total_loss / len(dataloader)
-    accuracy = correct_predictions / total_samples
 
-    return average_loss, accuracy
+        manual_transforms = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ])
 
+        # Transform if necessary
+        target_image = manual_transforms(target_image)
+
+        # Turn on model evaluation mode and inference mode
+        trained_model.eval()
+        with torch.inference_mode():
+            # Add an extra dimension to the image
+            target_image = target_image.unsqueeze(dim=0)
+
+            # Make a prediction on image with an extra dimension
+            target_image_pred = trained_model(target_image.cuda())
+
+        # Convert logits -> prediction probabilities
+        # (using torch.softmax() for multi-class classification)
+        target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
+
+        # Convert prediction probabilities -> prediction labels
+        target_image_pred_label = torch.argmax(target_image_pred_probs, dim=1)
+        pred_class = class_names[target_image_pred_label.item()]
+        true_class = image_path.parts[3]
+        predictions.append(target_image_pred_label.item())
+        y_test.append(class_names.index(true_class))
+        if pred_class == true_class:
+            accuracy.append(1)
+        else:
+            accuracy.append(0)
+
+    ConfusionMatrixDisplay.from_predictions(y_test, predictions, display_labels=class_names, cmap='Blues',
+                                            colorbar=False)
+    plt.savefig(model_folder + '/test_confusion_matrix.png')
+    plt.show()
+
+    print("Accuracy on test set: " + str(sum(accuracy) / len(accuracy) * 100) + " %")
+    print("Precision on test set " + str(precision_score(y_test, predictions, average='macro')))
+    print("Recall on test set " + str(recall_score(y_test, predictions, average='macro')))
+    print("F1 Score on test set " + str(f1_score(y_test, predictions, average='macro')))
+    # print("Log-Loss on test set " + str(log_loss(y_test, predictions)))
 
 
 #%%
