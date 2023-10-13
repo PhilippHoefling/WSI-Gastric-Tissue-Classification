@@ -28,7 +28,7 @@ from torch import nn
 from sklearn.metrics import accuracy_score
 
 from torchvision.models.resnet import Bottleneck, ResNet
-from evaluation import get_model
+from Tile_inference import get_model
 
 from pathlib import Path
 from auxiliaries import store_model

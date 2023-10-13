@@ -27,7 +27,7 @@ from torch import nn
 from sklearn.metrics import accuracy_score
 from auxiliaries import store_hyperparameters, store_model, plot_loss_acc_curves
 from torchvision.models.resnet import Bottleneck, ResNet
-from evaluation import get_model
+from Tile_inference import get_model
 
 from pathlib import Path
 

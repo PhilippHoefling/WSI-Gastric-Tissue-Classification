@@ -27,7 +27,7 @@ from torch import nn
 from sklearn.metrics import accuracy_score
 from auxiliaries import store_hyperparameters, store_model, plot_loss_acc_curves
 from torchvision.models.resnet import Bottleneck, ResNet
-from evaluation import get_model
+from Tile_inference import get_model
 
 from pathlib import Path
 
@@ -321,9 +321,8 @@ def train_step(model: torch.nn.Module,
     return: Train loss and Train accuracy
     '''
 
-    #fixed thresholds
-    t1 = 0.25
-    t2= 0.75
+    #Tolerance
+    tolerance = 0.1
 
 
     # Set model to training mode
@@ -335,25 +334,21 @@ def train_step(model: torch.nn.Module,
 
     for data, labels in dataloader:
 
-        #Convert labels to regression style floats
-        labels = labels.float() # Convert to float
-        labels[labels == 0] = 0.0
-        labels[labels == 1] = 0.5
-        labels[labels == 2] = 1.0
-
-
         # Move data and labels to the specified device (e.g., GPU)
         data, labels = data.to(device), labels.to(device)
 
         # Reset gradients
         optimizer.zero_grad()
 
+        # Add an extra dimension to the target tensor
+        labels = labels.unsqueeze(1).float()
+
         # Forward pass: compute predictions
         outputs = model(data)
 
 
         # Compute loss between the predicted outputs and labels
-        loss = loss_fn(outputs, labels.unsqueeze(1).float())
+        loss = loss_fn(outputs, labels)
 
         # Compute gradients
         loss.backward()
@@ -363,17 +358,8 @@ def train_step(model: torch.nn.Module,
 
         total_loss += loss.item()
 
-        # Calculate accuracy
-        predicted = outputs.squeeze().detach().cpu()
-        labels_cpu = labels.cpu()
-        predicted_classes = torch.zeros_like(predicted)
-
-        # Set class based on custom thresholds
-        predicted_classes[predicted < 0.25] = 0
-        predicted_classes[(predicted >= 0.25) & (predicted <= 0.75)] = 0.5
-        predicted_classes[predicted > 0.75] = 1
-
-        correct_predictions += (predicted_classes == labels_cpu).sum().item()
+        # Compute accuracy using torch.round
+        correct_predictions += torch.sum(torch.round(outputs) == labels).item()
         total_samples += labels.size(0)
 
     # Adjust the learning rate based on the scheduler
@@ -401,21 +387,19 @@ def val_step(model: torch.nn.Module,
     correct_predictions = 0
     total_samples = 0
 
-    #fixed thresholds
-    t1 = 0.25
-    t2= 0.75
+    #Tolerance
+    tolerance = 0.1
 
     # Disable gradient computation during validation
     with torch.no_grad():
         for data, labels in dataloader:
             #Convert labels to regression style floats
-            labels = labels.float() # Convert to float
-            labels[labels == 0] = 0.0
-            labels[labels == 1] = 0.5
-            labels[labels == 2] = 1.0
 
             # Move data and labels to the specified device (e.g., GPU)
             data, labels = data.to(device), labels.to(device)
+
+            # Add an extra dimension to the target tensor
+            labels = labels.unsqueeze(1).float()
 
             # Forward pass: compute predictions
             outputs = model(data)
@@ -424,24 +408,12 @@ def val_step(model: torch.nn.Module,
             loss = loss_fn(outputs, labels)
             total_loss += loss.item()
 
-            # Calculate accuracy
-            predicted = outputs.squeeze().detach().cpu()
-            labels_cpu = labels.cpu()
-            predicted_classes = torch.zeros_like(predicted)
-
-            # Set class based on custom thresholds
-            predicted_classes[predicted < 0.25] = 0
-            predicted_classes[(predicted >= 0.25) & (predicted <= 0.75)] = 0.5
-            predicted_classes[predicted > 0.75] = 1
-
-            correct_predictions += (predicted_classes == labels_cpu).sum().item()
+            # Compute accuracy using torch.round
+            correct_predictions += torch.sum(torch.round(outputs) == labels).item()
             total_samples += labels.size(0)
 
     average_loss = total_loss / len(dataloader)
     accuracy = correct_predictions / total_samples
 
     return average_loss, accuracy
-
-
-
 #%%

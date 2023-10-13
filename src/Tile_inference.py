@@ -62,7 +62,9 @@ def pred_on_single_image(single_image_path, model_folder: str):
 
 
 def print_model_metrices(model_folder: str, test_folder: str, safe_wrong_preds: bool):
+    #load model
     trained_model, model_results, dict_hyperparameters, summary = get_model(model_folder)
+
     image_path_list = list(Path(test_folder).glob("*/*.*"))
     class_names = cfg_hp["class_names"]
     accuracy = []

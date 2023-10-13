@@ -2,9 +2,9 @@
 from loguru import logger
 from BaseLine_AntrumCorpus import train_new_model, plot_loss_acc_curves
 from process import load_sort_data
-from evaluation import print_model_metrices, pred_on_single_image
+from Tile_inference import print_model_metrices, pred_on_single_image
 from process import plot_file_distribution
-from Tiling import TestonSlide
+from WSI_Inference import TestOnSingleSlide
 from VisionTransformer import trainVIT
 from AntrumCorpusIntermediate import train_new_3model, print_3model_metrices
 from BaseLine_Inflammed import train_new_inf_model
@@ -15,23 +15,23 @@ if __name__ == "__main__":
     # Define dataset paths
     dataset_Tissue_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/TissueTiles'
     dataset_Inflammed_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/InflamedTiles'
-    model_folder = "models/TransferLearning_model_24092023_1356"
+    model_folder = "models/TransferLearning_model_19092023_2040"
     test_folder = "data/TissueTiles/test"
     tf_model ="imagenet"
     single_image_path = 'data/TissueTiles/test/corpus/47HE d-5_x-16540_y-3145_w-2560_h-2560_corpus.png'
-    test_slidepath = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/WSIs/7CHE.mrxs'
+    test_slidepath = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/WSIs/94HE.mrxs'
 
     # Set parameter for testing
     #num_images = 6
 
     # Set if you want to train a new model or which evualation you want to make on an existing model
     train_model = False
-    train_vit = True
+    train_vit = False
     test_existing_model = False
     preprocess = False
     plot_data_distribution = False
     prediction_on_image = False
-    testonWSI =  False
+    testonWSI =  True
     printLossCurves = False
     train_3model = False
     train_inf_model = False
@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     if testonWSI:
         logger.info("Start prediction on WSI...")
-        TestonSlide(model_folder=model_folder, slidepath=test_slidepath)   #%%
+        TestOnSingleSlide(model_folder=model_folder, slidepath=test_slidepath)   #%%
 
     if printLossCurves:
         logger.info("Start printing loss/accuracy curves...")

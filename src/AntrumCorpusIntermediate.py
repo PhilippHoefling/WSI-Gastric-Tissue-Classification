@@ -32,7 +32,7 @@ from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, r
 from torchvision.models.resnet import Bottleneck, ResNet
 
 from pathlib import Path
-from evaluation import get_model
+from Tile_inference import get_model
 from auxiliaries import  store_model
 
 def create_dataloaders(train_dir: str,
