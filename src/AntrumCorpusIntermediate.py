@@ -1,39 +1,25 @@
 import os
-import math
-import copy
 
-import pandas as pd
-import numpy as np
-import shutil
 import matplotlib.pyplot as plt
-from config import config_hyperparameter as cfg_hp
+from src.config import config_hyperparameter as cfg_hp
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from loguru import logger
-import splitfolders
 from timeit import default_timer as timer
 from datetime import datetime
 from tqdm.auto import tqdm
-from torchinfo import summary
 import time
-import pickle
-import random
 # import skimage
-from skimage.io import imread
 from typing import Dict, List, Tuple
 #from sklearn.model_selection import train
 import torchvision
 from torch import nn
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, auc
-
-
-from torchvision.models.resnet import Bottleneck, ResNet
+from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score
 
 from pathlib import Path
-from Tile_inference import get_model
-from auxiliaries import  store_model
+from src.Tile_inference import get_model
+from src.auxiliaries import  store_model
 
 def create_dataloaders(train_dir: str,
                        val_dir: str,

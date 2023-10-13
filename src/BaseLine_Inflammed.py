@@ -1,12 +1,6 @@
 import os
-import math
-import copy
 
-import pandas as pd
-import numpy as np
-import shutil
-import matplotlib.pyplot as plt
-from config import config_hyperparameter as cfg_hp
+from src.config import config_hyperparameter as cfg_hp
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -14,22 +8,14 @@ from loguru import logger
 from timeit import default_timer as timer
 from datetime import datetime
 from tqdm.auto import tqdm
-from torchinfo import summary
 import time
-import pickle
-import random
 # import skimage
-from skimage.io import imread
 from typing import Dict, List, Tuple
 #from sklearn.model_selection import train
 import torchvision
 from torch import nn
-from sklearn.metrics import accuracy_score
-from auxiliaries import store_hyperparameters, store_model, plot_loss_acc_curves
-from torchvision.models.resnet import Bottleneck, ResNet
-from Tile_inference import get_model
+from src.auxiliaries import store_model
 
-from pathlib import Path
 
 def create_dataloaders(train_dir: str,
                        val_dir: str,

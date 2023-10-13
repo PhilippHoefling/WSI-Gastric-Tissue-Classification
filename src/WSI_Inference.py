@@ -1,19 +1,15 @@
-import PIL.ImageShow
 from PIL import Image
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from pathlib import Path
 import torch
-import torchvision
-from skimage.measure import shannon_entropy
 from torchvision import transforms
-from process import is_white_or_grey_png
 
-from config import config_hyperparameter as cfg_hp
+from src.config import config_hyperparameter as cfg_hp
 import torch.nn as nn
 import torch.optim as optim
-from auxiliaries import get_model, image_entropy
+from src.auxiliaries import get_model
 
 # workaround for Openslide import
 OPENSLIDE_PATH = r'C:\Users\phili\OpenSlide\openslide-win64-20230414\bin'

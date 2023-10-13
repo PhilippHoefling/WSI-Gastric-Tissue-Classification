@@ -1,15 +1,13 @@
 
 from loguru import logger
-from BaseLine_AntrumCorpus import train_new_model, plot_loss_acc_curves
-from process import load_sort_data
-from Tile_inference import print_model_metrices, pred_on_single_image
-from process import plot_file_distribution
-from WSI_Inference import TestOnSingleSlide
-from VisionTransformer import trainVIT
-from AntrumCorpusIntermediate import train_new_3model, print_3model_metrices
-from BaseLine_Inflammed import train_new_inf_model
-import torchvision
-import torch
+from src.BaseLine_AntrumCorpus import train_new_model, plot_loss_acc_curves
+from src.process import load_sort_data
+from src.Tile_inference import print_model_metrices, pred_on_single_image
+from src.process import plot_file_distribution
+from src.WSI_Inference import TestOnSingleSlide
+from src.VisionTransformer import trainVIT
+from src.AntrumCorpusIntermediate import train_new_3model, print_3model_metrices
+from src.BaseLine_Inflammed import train_new_inf_model
 
 if __name__ == "__main__":
     # Define dataset paths
@@ -28,10 +26,10 @@ if __name__ == "__main__":
     train_model = False
     train_vit = False
     test_existing_model = False
-    preprocess = False
+    preprocess = True
     plot_data_distribution = False
     prediction_on_image = False
-    testonWSI =  True
+    testonWSI =  False
     printLossCurves = False
     train_3model = False
     train_inf_model = False

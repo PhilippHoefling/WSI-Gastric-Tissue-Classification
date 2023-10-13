@@ -1,18 +1,14 @@
 import numpy as np
-from sklearn import metrics
-import pickle
 import matplotlib.pyplot as plt
 from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, auc
 import torch
 import torchvision
 from torchvision import transforms
-import os
 from pathlib import Path
-from loguru import logger
 from PIL import Image
-from config import config_hyperparameter as cfg_hp
+from src.config import config_hyperparameter as cfg_hp
 import csv
-from auxiliaries import get_model
+from src.auxiliaries import get_model
 
 
 def pred_on_single_image(single_image_path, model_folder: str):
