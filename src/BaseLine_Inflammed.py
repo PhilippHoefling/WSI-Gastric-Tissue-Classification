@@ -1,6 +1,6 @@
 import os
 
-from src.config import config_hyperparameter as cfg_hp
+from config import config_hyperparameter as cfg_hp
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -14,7 +14,7 @@ from typing import Dict, List, Tuple
 #from sklearn.model_selection import train
 import torchvision
 from torch import nn
-from src.auxiliaries import store_model
+from auxiliaries import store_model
 
 
 def create_dataloaders(train_dir: str,
@@ -104,18 +104,18 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     torch.manual_seed(cfg_hp["seed"])
     torch.cuda.manual_seed(cfg_hp["seed"])
     # Load weights from
-    weights = torchvision.models.ResNet18_Weights.DEFAULT
+    weights = torchvision.models.ResNet50_Weights.DEFAULT
 
     # Load pretrained model with or without weights
     if tf_model =='imagenet':
         # Load pretrained ResNet18 Model
-        model = torchvision.models.resnet18(weights)
+        model = torchvision.models.resnet50(weights)
 
     #elif tf_model =='PathDat':
     #    model = resnet50(pretrained=True, progress=False, key="BT")
     #    return model
     else:
-        model = torchvision.models.resnet18()
+        model = torchvision.models.resnet50()
 
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between
@@ -155,50 +155,49 @@ def train_new_inf_model(dataset_path: str, tf_model: str):
     logger.info(device)
     for b in range(len(cfg_hp["batch_size"])):
         for l in range(len(cfg_hp["lr"])):
-            for d in range(len(cfg_hp["dropout"])):
-                # Load data
-                train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
-                                                                          val_dir=val_dir,
-                                                                          num_workers=cfg_hp["num_workers"],
-                                                                          batch_size=cfg_hp["batch_size"][b],
-                                                                          )
+            # Load data
+            train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
+                                                                      val_dir=val_dir,
+                                                                      num_workers=cfg_hp["num_workers"],
+                                                                      batch_size=cfg_hp["batch_size"][b],
+                                                                      )
 
-                # Load pretrained model, weights and the transforms
-                model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout= d)
+            # Load pretrained model, weights and the transforms
+            model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout=cfg_hp["dropout"])
 
-                # Define loss and optimizer
-                loss_fn = nn.BCEWithLogitsLoss()
-                optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=1e-4)
+            # Define loss and optimizer
+            loss_fn = nn.BCEWithLogitsLoss()
+            optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=1e-4)
 
-                #learning rate scheduler
-                scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20 , gamma=0.1)
-
-
-                # Set the random seeds
-                torch.manual_seed(cfg_hp["seed"])
-                torch.cuda.manual_seed(cfg_hp["seed"])
-
-                hyperparameter_dict = {"epochs": cfg_hp["epochs"], "seed": cfg_hp["seed"],
-                                       "learning_rate": cfg_hp["lr"][l], "dropout": cfg_hp["dropout"][d],
-                                       "batch_size": cfg_hp["batch_size"][b], "num_workers": cfg_hp["num_workers"]}
+            #learning rate scheduler
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=75, eta_min=0)
 
 
-                # Setup training and save the results
-                results, model_folder = train(target_dir_new_model=target_dir_new_model,
-                                              tf_model=tf_model,
-                                              model_name=model_name,
-                                              model=model,
-                                              train_dataloader=train_dataloader,
-                                              val_dataloader=val_dataloader,
-                                              optimizer=optimizer,
-                                              scheduler=scheduler,
-                                              loss_fn=loss_fn,
-                                              batch_size=cfg_hp["batch_size"][b],
-                                              epochs=cfg_hp["epochs"],
-                                              hyperparameter_dict=hyperparameter_dict,
-                                              device=device
-                                              )
-        return model_folder
+            # Set the random seeds
+            torch.manual_seed(cfg_hp["seed"])
+            torch.cuda.manual_seed(cfg_hp["seed"])
+
+            hyperparameter_dict = {"epochs": cfg_hp["epochs"], "seed": cfg_hp["seed"],
+                                   "learning_rate": cfg_hp["lr"][l], "dropout": cfg_hp["dropout"],
+                                   "batch_size": cfg_hp["batch_size"][b], "num_workers": cfg_hp["num_workers"]}
+
+
+            # Setup training and save the results
+            results, model_folder = train(target_dir_new_model=target_dir_new_model,
+                                          tf_model=tf_model,
+                                          model_name=model_name,
+                                          model=model,
+                                          train_dataloader=train_dataloader,
+                                          val_dataloader=val_dataloader,
+                                          optimizer=optimizer,
+                                          scheduler=scheduler,
+                                          loss_fn=loss_fn,
+                                          batch_size=cfg_hp["batch_size"][b],
+                                          epochs=cfg_hp["epochs"],
+                                          hyperparameter_dict=hyperparameter_dict,
+                                          device=device
+                                          )
+    return model_folder
 
 def train(target_dir_new_model: str,
           tf_model: bool,
@@ -235,7 +234,7 @@ def train(target_dir_new_model: str,
 
     # Auxilary variables
     early_stopping = 0
-    max_acc = 0
+    min_val_loss = float('inf')
     trained_epochs = 0
     model_folder = ''
 
@@ -247,7 +246,8 @@ def train(target_dir_new_model: str,
                                            loss_fn=loss_fn,
                                            optimizer=optimizer,
                                            scheduler=scheduler,
-                                           device=device
+                                           device=device,
+                                           trained_epochs = trained_epochs
                                            )
         val_loss, val_acc = val_step(model=model,
                                      dataloader=val_dataloader,
@@ -270,9 +270,9 @@ def train(target_dir_new_model: str,
         results["val_loss"].append(val_loss)
         results["val_acc"].append(val_acc)
 
+        min_val_loss = min(results["val_loss"])
         # Early Stopping
-        max_acc = max(results["val_acc"])
-        if results["val_acc"][-1] < max_acc:
+        if results["val_loss"][-1] > min_val_loss:
             early_stopping = early_stopping + 1
         else:
             # End the timer and print out how long it took
@@ -282,9 +282,6 @@ def train(target_dir_new_model: str,
             total_train_time = end_time - start_time
             model_folder = store_model(target_dir_new_model, tf_model, model_name, hyperparameter_dict, trained_epochs,
                                        model, results, batch_size, total_train_time, timestampStr)
-            early_stopping = 0
-
-        if epoch < 9:
             early_stopping = 0
 
         if early_stopping == cfg_hp["patience"]:
@@ -299,7 +296,8 @@ def train_step(model: torch.nn.Module,
                loss_fn: torch.nn.Module,
                optimizer: torch.optim.Optimizer,
                scheduler: torch.optim.lr_scheduler,
-               device: torch.device
+               device: torch.device,
+               trained_epochs: int
                ) -> Tuple[float, float]:
     '''
     Train step for the selected model (Baseline or Transfer Learning model) and calculating the train loss
@@ -344,7 +342,8 @@ def train_step(model: torch.nn.Module,
         total_samples += labels.size(0)
 
     # Adjust the learning rate based on the scheduler
-    scheduler.step()
+    if trained_epochs > 10:
+     scheduler.step()
 
     average_loss = total_loss / len(dataloader)
     accuracy = correct_predictions / total_samples

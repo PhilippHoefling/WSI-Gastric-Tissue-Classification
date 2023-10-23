@@ -1,25 +1,41 @@
-name: digpat
+# Otto-Friedrich University of Bamberg
+# Chair of Explainable Machine Learning (xAI)
+# Master Thesis: Development of an AI-based algorithm for the classification of gastric tissue in computational pathology
+#
+# @description:
+# Contains all the required packages for the project.
+#
+# @author: Philipp Höfling
+# @version: 1.0
+# @python: Python 3
+# @maintainer: Philipp Höfling
+# @email:philipp-andreas.hoefling@stud.uni-bamberg.de
+# @status: Production
+
+name: DigPat
 channels:
   - defaults
   - conda-forge
+  - anaconda
 dependencies:
   - python=3.9
-  - pip
-
-  # Logging
-  - loguru
-  # Jupyter Notebook
-  - ipykernel
-  - ipywidgets
-  # Data analysis
-  - scikit-learn
-  # Data handling
+  - matplotlib
+  - openslide-python
+  - opencv-python
+  - jupyter
   - numpy
+  - tqdm
+  - ipywidgets
+  - spacy=2.3.5
+  - pip
+  - pytorch
+  - scikit-image
+  - scikit-learn
   - torchinfo
-  # Pip installationen
+  - torchvision
+  - loguru
+  - timeit
+  - datetime
+  
   - pip:
-    # Data handling
-    - pandas
-    # Data analysis
-    - pandas-profiling
-    - split-folders
+    - nbimporter

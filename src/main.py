@@ -1,23 +1,25 @@
 
 from loguru import logger
-from src.BaseLine_AntrumCorpus import train_new_model, plot_loss_acc_curves
-from src.process import load_sort_data
-from src.Tile_inference import print_model_metrices, pred_on_single_image
-from src.process import plot_file_distribution
-from src.WSI_Inference import TestOnSingleSlide
-from src.VisionTransformer import trainVIT
-from src.AntrumCorpusIntermediate import train_new_3model, print_3model_metrices
-from src.BaseLine_Inflammed import train_new_inf_model
+from BaseLine_AntrumCorpus import train_new_model
+from process import load_sort_data
+from Tile_inference import tile_inference_regression, tile_inference_binary, pred_on_single_image
+from process import plot_file_distribution
+from WSI_Inference import TestOnSingleSlide
+from VisionTransformer import trainVIT
+from AntrumCorpusIntermediate import train_new_3model, print_3model_metrices
+from BaseLine_Inflammed import train_new_inf_model
+from auxiliaries import plot_loss_acc_curves
 
 if __name__ == "__main__":
     # Define dataset paths
-    dataset_Tissue_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/TissueTiles'
-    dataset_Inflammed_path = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/InflamedTiles'
-    model_folder = "models/TransferLearning_model_19092023_2040"
-    test_folder = "data/TissueTiles/test"
+    dataset_Tissue_path = 'C:/Users/phili//OneDrive - Otto-Friedrich-Universität Bamberg/DataSpell/xAIMasterThesis/data/TissueTiles'
+    dataset_Inflammed_path = 'C:/Users/phili/OneDrive - Otto-Friedrich-Universität Bamberg/DataSpell/xAIMasterThesis/data/InflamedTiles'
+    model_folder = "models/TransferLearning_model_20102023_1057"
+    test_Tissue_folder = "data/TissueTiles/test"
+    test_Inf_folder = "data/InflamedTiles/test"
     tf_model ="imagenet"
     single_image_path = 'data/TissueTiles/test/corpus/47HE d-5_x-16540_y-3145_w-2560_h-2560_corpus.png'
-    test_slidepath = 'C:/Users/phili/DataspellProjects/xAIMasterThesis/data/WSIs/94HE.mrxs'
+    test_slidepath = 'C:/Users/phili//OneDrive - Otto-Friedrich-Universität Bamberg/DataSpell/xAIMasterThesis/data/WSIs/94HE.mrxs'
 
     # Set parameter for testing
     #num_images = 6
@@ -25,15 +27,21 @@ if __name__ == "__main__":
     # Set if you want to train a new model or which evualation you want to make on an existing model
     train_model = False
     train_vit = False
-    test_existing_model = False
-    preprocess = True
-    plot_data_distribution = False
-    prediction_on_image = False
-    testonWSI =  False
-    printLossCurves = False
-    train_3model = False
     train_inf_model = False
+
+    test_Tissue_Model = False
+    test_Inf_Model = False
+    testonWSI =  False
     test_3model = False
+    prediction_on_image = False
+
+    preprocess = False
+    plot_data_distribution = False
+
+    printLossCurves = True
+    train_3model = False
+
+
     #model_metrices = False
     #activate_Augmentation = False
 
@@ -41,7 +49,7 @@ if __name__ == "__main__":
 
     if preprocess:
         logger.info("Start preprocessing data...")
-        load_sort_data("D:/DigPatInflammed/tiles",dataset_Inflammed_path)
+        load_sort_data("D:/DigPatTissue2/tiles",dataset_Tissue_path)
         logger.info("Congratulations, the preprocessing was successful!")
 
     if train_model:
@@ -50,9 +58,13 @@ if __name__ == "__main__":
         logger.info("Congratulations, training the baseline models was successful!" + str(model_folder))
 
 
-    if test_existing_model:
+    if test_Tissue_Model:
         logger.info("Start testing the model..")
-        print_model_metrices(model_folder=model_folder, test_folder=test_folder, safe_wrong_preds=True)   #%%
+        tile_inference_regression(model_folder=model_folder, test_folder=test_Tissue_folder, safe_wrong_preds=True)
+
+    if test_Inf_Model:
+        logger.info("Start testing the model..")
+        tile_inference_binary(model_folder=model_folder, test_folder=test_Inf_folder, safe_wrong_preds=True)    #%%
 
     if plot_data_distribution:
         logger.info("Start analyzing dataset..")

@@ -6,10 +6,10 @@ from pathlib import Path
 import torch
 from torchvision import transforms
 
-from src.config import config_hyperparameter as cfg_hp
+from config import config_hyperparameter as cfg_hp
 import torch.nn as nn
 import torch.optim as optim
-from src.auxiliaries import get_model
+from auxiliaries import get_model
 
 # workaround for Openslide import
 OPENSLIDE_PATH = r'C:\Users\phili\OpenSlide\openslide-win64-20230414\bin'

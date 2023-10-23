@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
-from src.config import config_hyperparameter as cfg_hp
+from config import config_hyperparameter as cfg_hp
 import shutil
 import csv
 
@@ -24,8 +24,8 @@ def load_sort_data(src_dir, dst_dir):
     # Set the random seed
     np.random.seed(cfg_hp["seed"])
 
-    #labels = 'corpus','antrum', 'intermediate'
-    labels = '_inflamed','_noninflamed'
+    labels = 'corpus','antrum', 'intermediate'
+    #labels = '_inflamed','_noninflamed'
 
     folders, num_folders = loading(src_dir)
     npfol = np.array(folders)

@@ -1,9 +1,9 @@
 import os
 
-from src.config import config_hyperparameter as cfg_hp
+from config import config_hyperparameter as cfg_hp
 import torch
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from loguru import logger
 from timeit import default_timer as timer
 from datetime import datetime
@@ -11,10 +11,39 @@ from tqdm.auto import tqdm
 import time
 # import skimage
 from typing import Dict, List, Tuple
-#from sklearn.model_selection import train
+# from sklearn.model_selection import train
 import torchvision
 from torch import nn
-from src.auxiliaries import store_model
+from auxiliaries import store_model
+from PIL import Image
+
+
+# Create custom DatasetClass to deal with sorting of classes
+class CustomImageFolder(Dataset):
+    def __init__(self, root_dir, transform=None):
+        self.root_dir = root_dir
+        self.transform = transform
+        self.samples = []
+
+        class_mapping = {'antrum': 0, 'intermediate': 1, 'corpus': 2}
+
+        for class_name, class_label in class_mapping.items():
+            class_path = os.path.join(root_dir, class_name)
+            for image_name in sorted(os.listdir(class_path)):  # Sort the images inside class folder
+                image_path = os.path.join(class_path, image_name)
+                # Appending the image path and class label
+                self.samples.append((image_path, class_label))
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        image_path, label = self.samples[idx]
+        image = Image.open(image_path)
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
 
 
 def create_dataloaders(train_dir: str,
@@ -29,13 +58,9 @@ def create_dataloaders(train_dir: str,
     return: Dataloaders for training and validation, list of the class names in the dataset
     '''
 
-    # Use ImageFolder to create dataset(s)
-    train_data = datasets.ImageFolder(train_dir, transform=train_transform)
-    val_data = datasets.ImageFolder(val_dir, transform=val_transform)
+    train_data = CustomImageFolder(root_dir=train_dir, transform=train_transform)
+    val_data = CustomImageFolder(root_dir=val_dir, transform=val_transform, )
 
-    # Get class names
-    class_names = train_data.classes
-    print(class_names)
     # Turn images into data loaders
     train_dataloader = DataLoader(train_data,
                                   batch_size=batch_size,
@@ -51,41 +76,40 @@ def create_dataloaders(train_dir: str,
                                 pin_memory=True
                                 )
 
-    return train_dataloader, val_dataloader, class_names
+    return train_dataloader, val_dataloader
 
-#manualtransformation placeholder for augmentation
+
+# manualtransformation placeholder for augmentation
 def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
     '''
     Load the data into data loaders with the choosen transformation function
     return: dataloaders for training and validation, list of the class names in the dataset
     '''
 
-
     train_transforms = transforms.Compose([
-            transforms.Resize((224,224)),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(degrees=180),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ])
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.RandomRotation(degrees=180),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
 
     val_transforms = transforms.Compose([
-        transforms.Resize((224,224)),
+        transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
 
     # Create train and validation data loaders as well as get a list of class names
-    train_dataloader, val_dataloader, class_names = create_dataloaders(train_dir=train_dir,
+    train_dataloader, val_dataloader = create_dataloaders(train_dir=train_dir,
                                                                        val_dir=val_dir,
                                                                        train_transform=train_transforms,
                                                                        val_transform=val_transforms,
                                                                        batch_size=batch_size,
                                                                        num_workers=num_workers)
-    print(class_names)
-    return train_dataloader, val_dataloader, class_names
 
+    return train_dataloader, val_dataloader,
 
 
 def loading(folder_name: str):
@@ -94,8 +118,7 @@ def loading(folder_name: str):
     return os.listdir(direc), len(os.listdir(direc))
 
 
-
-def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int):
+def load_pretrained_model(device, tf_model: str, dropout: int):
     '''
     Load the pretrainind ResNet50 pytorch model with or without weights
     return: model and the pretrained weights
@@ -104,24 +127,23 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     torch.manual_seed(cfg_hp["seed"])
     torch.cuda.manual_seed(cfg_hp["seed"])
     # Load weights from
-    weights = torchvision.models.ResNet18_Weights.DEFAULT
+    weights = torchvision.models.ResNet50_Weights.DEFAULT
 
     # Load pretrained model with or without weights
-    if tf_model =='imagenet':
+    if tf_model == 'imagenet':
         # Load pretrained ResNet18 Model
-        model = torchvision.models.resnet18(weights)
+        model = torchvision.models.resnet50(weights)
 
-    #elif tf_model =='PathDat':
+    # elif tf_model =='PathDat':
     #    model = resnet50(pretrained=True, progress=False, key="BT")
     #    return model
     else:
-        model = torchvision.models.resnet18()
+        model = torchvision.models.resnet50()
 
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between
     model.fc = torch.nn.Sequential(
         torch.nn.Linear(in_features=num_ftrs, out_features=1))
-
 
     # Unfreeze all the layers
     for param in model.parameters():
@@ -133,6 +155,7 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     model.to(device)
 
     return model
+
 
 def train_new_model(dataset_path: str, tf_model: str):
     '''
@@ -157,22 +180,21 @@ def train_new_model(dataset_path: str, tf_model: str):
         for l in range(len(cfg_hp["lr"])):
             for d in range(len(cfg_hp["dropout"])):
                 # Load data
-                train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
+                train_dataloader, val_dataloader = load_data(train_dir=train_dir,
                                                                           val_dir=val_dir,
                                                                           num_workers=cfg_hp["num_workers"],
                                                                           batch_size=cfg_hp["batch_size"][b],
                                                                           )
 
                 # Load pretrained model, weights and the transforms
-                model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout= d)
+                model = load_pretrained_model(device, tf_model=tf_model,  dropout=d)
 
                 # Define loss and optimizer
                 loss_fn = nn.MSELoss()
                 optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=1e-4)
 
-                #learning rate scheduler
-                scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20 , gamma=0.1)
-
+                # learning rate scheduler
+                scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
 
                 # Set the random seeds
                 torch.manual_seed(cfg_hp["seed"])
@@ -181,7 +203,6 @@ def train_new_model(dataset_path: str, tf_model: str):
                 hyperparameter_dict = {"epochs": cfg_hp["epochs"], "seed": cfg_hp["seed"],
                                        "learning_rate": cfg_hp["lr"][l], "dropout": cfg_hp["dropout"][d],
                                        "batch_size": cfg_hp["batch_size"][b], "num_workers": cfg_hp["num_workers"]}
-
 
                 # Setup training and save the results
                 results, model_folder = train(target_dir_new_model=target_dir_new_model,
@@ -199,6 +220,7 @@ def train_new_model(dataset_path: str, tf_model: str):
                                               device=device
                                               )
         return model_folder
+
 
 def train(target_dir_new_model: str,
           tf_model: bool,
@@ -294,6 +316,7 @@ def train(target_dir_new_model: str,
 
     return results, model_folder
 
+
 def train_step(model: torch.nn.Module,
                dataloader: torch.utils.data.DataLoader,
                loss_fn: torch.nn.Module,
@@ -307,10 +330,6 @@ def train_step(model: torch.nn.Module,
     return: Train loss and Train accuracy
     '''
 
-    #Tolerance
-    tolerance = 0.1
-
-
     # Set model to training mode
     model.train()
 
@@ -319,7 +338,6 @@ def train_step(model: torch.nn.Module,
     total_samples = 0
 
     for data, labels in dataloader:
-
         # Move data and labels to the specified device (e.g., GPU)
         data, labels = data.to(device), labels.to(device)
 
@@ -331,7 +349,6 @@ def train_step(model: torch.nn.Module,
 
         # Forward pass: compute predictions
         outputs = model(data)
-
 
         # Compute loss between the predicted outputs and labels
         loss = loss_fn(outputs, labels)
@@ -373,13 +390,13 @@ def val_step(model: torch.nn.Module,
     correct_predictions = 0
     total_samples = 0
 
-    #Tolerance
+    # Tolerance
     tolerance = 0.1
 
     # Disable gradient computation during validation
     with torch.no_grad():
         for data, labels in dataloader:
-            #Convert labels to regression style floats
+            # Convert labels to regression style floats
 
             # Move data and labels to the specified device (e.g., GPU)
             data, labels = data.to(device), labels.to(device)
@@ -402,4 +419,4 @@ def val_step(model: torch.nn.Module,
     accuracy = correct_predictions / total_samples
 
     return average_loss, accuracy
-#%%
+# %%

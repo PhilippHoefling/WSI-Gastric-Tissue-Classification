@@ -1,7 +1,7 @@
 import os
 
 import matplotlib.pyplot as plt
-from src.config import config_hyperparameter as cfg_hp
+from config import config_hyperparameter as cfg_hp
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -18,8 +18,8 @@ from torch import nn
 from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score
 
 from pathlib import Path
-from src.Tile_inference import get_model
-from src.auxiliaries import  store_model
+from Tile_inference import get_model
+from auxiliaries import  store_model
 
 def create_dataloaders(train_dir: str,
                        val_dir: str,
@@ -197,7 +197,6 @@ def train_new_3model(dataset_path: str, tf_model: str):
                                               train_dataloader=train_dataloader,
                                               val_dataloader=val_dataloader,
                                               optimizer=optimizer,
-                                              scheduler=scheduler,
                                               loss_fn=loss_fn,
                                               batch_size=cfg_hp["batch_size"][b],
                                               epochs=cfg_hp["epochs"],

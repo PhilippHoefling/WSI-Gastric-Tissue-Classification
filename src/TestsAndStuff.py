@@ -42,7 +42,7 @@ def is_white_or_grey_png(image_path, threshold=0.95):
 
 
 # Usage example
-image_path = "C:/Users/phili/DataspellProjects/xAIMasterThesis/data/Processed/train/antrum/23HE d-10_x-8810_y-5210_w-2560_h-2560_antrum.png"
+image_path = ""
 image = Image.open(image_path)
 plt.imshow(image)
 plt.axis('off')

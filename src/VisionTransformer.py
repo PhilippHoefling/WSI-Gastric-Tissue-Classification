@@ -1,7 +1,7 @@
 
 import timm
 import os
-from src.config import config_hyperparameter as cfg_hp
+from config import config_hyperparameter as cfg_hp
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -14,7 +14,7 @@ from typing import Dict, List, Tuple
 #from sklearn.model_selection import train
 from torch import nn
 
-from src.auxiliaries import store_model
+from auxiliaries import store_model
 
 
 def get_pretrained_url(key):
