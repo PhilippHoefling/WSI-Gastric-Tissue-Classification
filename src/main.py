@@ -12,9 +12,9 @@ from auxiliaries import plot_loss_acc_curves
 
 if __name__ == "__main__":
     # Define dataset paths
-    dataset_Tissue_path = 'C:/Users/phili//OneDrive - Otto-Friedrich-Universität Bamberg/DataSpell/xAIMasterThesis/data/TissueTiles'
-    dataset_Inflammed_path = 'C:/Users/phili/OneDrive - Otto-Friedrich-Universität Bamberg/DataSpell/xAIMasterThesis/data/InflamedTiles'
-    model_folder = "models/TransferLearning_model_20102023_1057"
+    dataset_Tissue_path = 'data/TissueTiles'
+    dataset_Inflammed_path = 'data/InflamedTiles'
+    model_folder = "models/TransferLearning_model_30102023_1009"
     test_Tissue_folder = "data/TissueTiles/test"
     test_Inf_folder = "data/InflamedTiles/test"
     tf_model ="imagenet"
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     # Set if you want to train a new model or which evualation you want to make on an existing model
     train_model = False
     train_vit = False
-    train_inf_model = False
+    train_inf_model = True
 
     test_Tissue_Model = False
     test_Inf_Model = False
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     preprocess = False
     plot_data_distribution = False
 
-    printLossCurves = True
+    printLossCurves = False
     train_3model = False
 
 
@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     if plot_data_distribution:
         logger.info("Start analyzing dataset..")
-        plot_file_distribution(dataset_path=dataset_Inflammed_path)   #%%
+        plot_file_distribution(dataset_path=dataset_Tissue_path)   #%%
 
     if prediction_on_image:
         logger.info("Start prediction on single image...")
@@ -96,6 +96,6 @@ if __name__ == "__main__":
 
     if test_3model:
         logger.info("Start testing the model..")
-        print_3model_metrices(model_folder=model_folder, test_folder=test_folder)   #%%
+        print_3model_metrices(model_folder=model_folder, test_folder=test_Tissue_folder)   #%%
 
 #%%

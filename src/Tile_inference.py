@@ -186,32 +186,34 @@ def tile_inference_regression(model_folder: str, test_folder: str, safe_wrong_pr
         #target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
 
 
-    # Convert prediction probabilities -> prediction labels
+        # Convert prediction probabilities -> prediction labels
 
-        target_image_pred_label = target_image_pred_probs.round()
-        pred_class = class_names[int(target_image_pred_label)]
-        true_class = image_path.parts[3]
-
-        prob_distibution.append([true_class , target_image_pred])
-
-        predictions.append(target_image_pred_label.item())
-        y_test.append(class_names.index(true_class))
-        if pred_class == true_class:
-            accuracy.append(1)
-        else:
-            accuracy.append(0)
-            false_pred_path.append(str(image_path))
+            target_image_pred_label = target_image_pred_probs.round()
 
 
-    #safe wrong predictions
-    if safe_wrong_preds:
-        with open("Val_Classification_Errors.csv", 'w', newline='') as csv_file:
-            # Create a CSV writer object
-            csv_writer = csv.writer(csv_file)
+            pred_class = class_names[int(target_image_pred_label)]
+            true_class = image_path.parts[3]
 
-            # Write the string as a single-row CSV entry
+            prob_distibution.append([true_class , target_image_pred])
 
-            csv_writer.writerow( false_pred_path)
+            predictions.append(target_image_pred_label.item())
+            y_test.append(class_names.index(true_class))
+            if pred_class == true_class:
+                accuracy.append(1)
+            else:
+                accuracy.append(0)
+                false_pred_path.append(str(image_path))
+
+
+            #safe wrong predictions
+            if safe_wrong_preds:
+                with open("Val_Classification_Errors.csv", 'w', newline='') as csv_file:
+                    # Create a CSV writer object
+                    csv_writer = csv.writer(csv_file)
+
+                    # Write the string as a single-row CSV entry
+
+                    csv_writer.writerow( false_pred_path)
 
     print(y_test)
     print(predictions)
@@ -227,7 +229,7 @@ def tile_inference_regression(model_folder: str, test_folder: str, safe_wrong_pr
     # print("Log-Loss on test set " + str(log_loss(y_test, predictions)))
 
 
-    plot_roc_curve(model_folder=model_folder, y_true=y_test, y_scores=probabilities)
+    #plot_roc_curve(model_folder=model_folder, y_true=y_test, y_scores=probabilities)
 
     plot_prob_distribution(model_folder=model_folder,  prob_distibution=prob_distibution)
 
@@ -270,5 +272,6 @@ def plot_prob_distribution(model_folder, prob_distibution):
     plt.ylabel("Frequency")
     plt.legend(loc='upper right')
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.savefig(model_folder + '/test_Prob_Distribution.png')
     plt.show()
 #%%

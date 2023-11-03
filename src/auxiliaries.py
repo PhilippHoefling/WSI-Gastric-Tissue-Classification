@@ -196,14 +196,14 @@ def image_entropy(img):
 
 def get_model(model_folder: str):
     # get model from model folder
-    onlyfiles = [f for f in os.listdir(model_folder) if os.path.isfile(os.path.join(model_folder, f))]
     model_folder = Path(model_folder)
 
 
-    hyperparameters_path = model_folder.joinpath(onlyfiles[0])
-    model_path = model_folder.joinpath(onlyfiles[1])
-    results_path = model_folder.joinpath(onlyfiles[2])
-    summary_path = model_folder.joinpath(onlyfiles[3])
+    # Use the / operator to join paths
+    hyperparameters_path = model_folder / "hyperparameter_dict.pkl"
+    model_path = model_folder / "model.pkl"
+    results_path = model_folder / "results.pkl"
+    summary_path = model_folder / "summary.pkl"
 
     with open(model_path, "rb") as fid:
         classifier_model = pickle.load(fid)

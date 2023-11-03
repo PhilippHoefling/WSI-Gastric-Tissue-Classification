@@ -150,3 +150,39 @@ if os.path.exists(folder_to_clean) and os.path.isdir(folder_to_clean):
 else:
     print(f"The folder {folder_to_clean} does not exist.")
 #%%
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def plot_heatmap(csv_path):
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv(csv_path, sep=';', decimal='.')
+
+
+    # Pivot the DataFrame to create a matrix with dropout rates as rows,
+    # learning rates as columns, and validation loss as values
+    heatmap_data = df.pivot('batch_size', 'learning_rate', 'val_loss')
+
+    # Create the heatmap using seaborn
+    heatmap = sns.heatmap(heatmap_data, annot=True, fmt=".3f", cmap='viridis')
+
+    # Add a label to the color bar
+    colorbar = heatmap.collections[0].colorbar
+    colorbar.set_label('Validation Loss')
+
+    # Add labels and a title for clarity
+    plt.xlabel('Learning Rate')
+    plt.ylabel('Batch Size')
+
+
+
+    plt.savefig("heatmap_FlipAndRot_inflammed_valloss.png", bbox_inches='tight', dpi=300)
+    # Display the heatmap
+    plt.show()
+
+# Replace 'path_to_csv.csv' with your actual CSV file path
+csv_file_path = 'D:/InflammedResNet50_Flip_Rotation.csv'
+plot_heatmap(csv_file_path)
+#%%
+
+#%%

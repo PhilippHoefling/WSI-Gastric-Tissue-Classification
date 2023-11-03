@@ -61,11 +61,23 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
     '''
 
 
+    augmentation_pipeline_1 = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(degrees=180),
+        transforms.ToTensor(),
+    ])
+
+    augmentation_pipeline_2 = transforms.Compose([
+        transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+        transforms.ToTensor(),
+    ])
+
+    augmentation_pipeline_3 = transforms.Compose([
+        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
+        transforms.ToTensor(),
+    ])
     train_transforms = transforms.Compose([
         transforms.Resize((224,224)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(degrees=180),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
@@ -104,18 +116,18 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     torch.manual_seed(cfg_hp["seed"])
     torch.cuda.manual_seed(cfg_hp["seed"])
     # Load weights from
-    weights = torchvision.models.ResNet50_Weights.DEFAULT
+    weights = torchvision.models.ResNet34_Weights
 
     # Load pretrained model with or without weights
     if tf_model =='imagenet':
         # Load pretrained ResNet18 Model
-        model = torchvision.models.resnet50(weights)
+        model = torchvision.models.resnet34(weights)
 
     #elif tf_model =='PathDat':
     #    model = resnet50(pretrained=True, progress=False, key="BT")
     #    return model
     else:
-        model = torchvision.models.resnet50()
+        model = torchvision.models.resnet34()
 
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between
@@ -155,6 +167,8 @@ def train_new_inf_model(dataset_path: str, tf_model: str):
     logger.info(device)
     for b in range(len(cfg_hp["batch_size"])):
         for l in range(len(cfg_hp["lr"])):
+            print("Batchsize" + str(b))
+            print("lr"+ str(l))
             # Load data
             train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
                                                                       val_dir=val_dir,

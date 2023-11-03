@@ -293,8 +293,10 @@ def train(target_dir_new_model: str,
         results["val_acc"].append(val_acc)
 
         # Early Stopping
-        max_acc = max(results["val_acc"])
-        if results["val_acc"][-1] < max_acc:
+
+        min_val_loss = min(results["val_loss"])
+        # Early Stopping
+        if results["val_loss"][-1] > min_val_loss:
             early_stopping = early_stopping + 1
         else:
             # End the timer and print out how long it took

@@ -109,28 +109,30 @@ def plot_file_distribution(dataset_path):
     for dataset in datasets:
         for cls in classes:
             class_folder = os.path.join(dataset_path, dataset, cls)
-            class_counts[dataset][cls] = len(os.listdir(class_folder))
+            if os.path.isdir(class_folder):
+                class_counts[dataset][cls] = len(os.listdir(class_folder))
 
     num_datasets = len(datasets)
-    bar_width = 0.35
+    num_classes = len(classes)
+    bar_width = 0.8 / num_classes  # Adjusted bar width
     index = np.arange(num_datasets)
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
     for i, cls in enumerate(classes):
         counts = [class_counts[dataset][cls] for dataset in datasets]
-        ax.bar(index + i * bar_width, counts, bar_width, label=cls)
+        bar_positions = index + i * bar_width
+        ax.bar(bar_positions, counts, bar_width, label=cls)
 
     ax.set_xlabel('Dataset')
     ax.set_ylabel('Number of Samples')
     ax.set_title('Class Distribution')
-    ax.set_xticks(index + bar_width * (num_datasets - 1) / 2)
+    ax.set_xticks(index + bar_width * num_classes / 2)  # Center the x-axis ticks
     ax.set_xticklabels(datasets)
     ax.legend()
 
     plt.tight_layout()
     plt.show()
-
 
 
 
