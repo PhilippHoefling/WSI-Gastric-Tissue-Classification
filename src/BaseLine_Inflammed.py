@@ -61,26 +61,33 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
     '''
 
 
-    augmentation_pipeline_1 = transforms.Compose([
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(degrees=180),
-        transforms.ToTensor(),
-    ])
-
-    augmentation_pipeline_2 = transforms.Compose([
-        transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
-        transforms.ToTensor(),
-    ])
-
-    augmentation_pipeline_3 = transforms.Compose([
-        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
-        transforms.ToTensor(),
-    ])
     train_transforms = transforms.Compose([
-        transforms.Resize((224,224)),
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.RandomRotation(degrees=180),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
+
+    augmentation_pipeline_2 = transforms.Compose([
+        transforms.Resize((224, 224)),
+
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+
+    augmentation_pipeline_3 = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.RandomRotation(degrees=180),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5.)),
+        transforms.ToTensor(),
+    ])
+
 
     val_transforms = transforms.Compose([
         transforms.Resize((224,224)),
@@ -116,18 +123,18 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     torch.manual_seed(cfg_hp["seed"])
     torch.cuda.manual_seed(cfg_hp["seed"])
     # Load weights from
-    weights = torchvision.models.ResNet34_Weights
+    weights = torchvision.models.ResNet50_Weights
 
     # Load pretrained model with or without weights
     if tf_model =='imagenet':
-        # Load pretrained ResNet18 Model
-        model = torchvision.models.resnet34(weights)
+        # Load pretrained ResNet50 Model
+        model = torchvision.models.resnet50(weights)
 
     #elif tf_model =='PathDat':
     #    model = resnet50(pretrained=True, progress=False, key="BT")
     #    return model
     else:
-        model = torchvision.models.resnet34()
+        model = torchvision.models.resnet50()
 
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between

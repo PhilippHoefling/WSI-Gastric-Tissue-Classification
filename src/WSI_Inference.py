@@ -10,6 +10,9 @@ from config import config_hyperparameter as cfg_hp
 import torch.nn as nn
 import torch.optim as optim
 from auxiliaries import get_model
+import math
+
+from Tile_inference import plot_prob_distribution
 
 # workaround for Openslide import
 OPENSLIDE_PATH = r'C:\Users\phili\OpenSlide\openslide-win64-20230414\bin'
@@ -64,7 +67,6 @@ def TestOnSingleSlide(model_folder: str, slidepath: str):
             upper_bound = np.array([172, 255, 255])
 
             if is_tile_of_interest(np_tile, lower_bound, upper_bound):
-                # if is_white_or_grey_png(single_tile):
                 with torch.inference_mode():
                     # Add an extra dimension to the image
                     single_tile = manual_transforms(single_tile).unsqueeze(dim=0)
@@ -83,7 +85,7 @@ def TestOnSingleSlide(model_folder: str, slidepath: str):
     # Visualize Results in a Heatmap
     SlideHeatmap(heatmap_data=predictions)
 
-def TestOnSlides(model_folder: str, test_folder: str):
+def TestOnSlides(model_folder: str):
     # load classes
     class_names = cfg_hp["class_names"]
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -98,16 +100,42 @@ def TestOnSlides(model_folder: str, test_folder: str):
     trained_model.to(device)
     # Turn on model evaluation mode and inference mode
     trained_model.eval()
-    wsipathlist = list(Path(test_folder).glob("*/*.*"))
 
     #array for true class
     y_test = []
+    #array for predictions
+    inflammation_ratios = []
+    printInfRatio = []
+    TestSlides =   {
+        '40BHE': ['inflamed',['antrum','corpus']],
+        '20BHE': ['inflamed',['antrum']],
+        '3CHE': ['inflamed',['antrum','corpus']],
+        '47BHE': ['inflamed',['antrum','corpus']],
+        '19CHE': ['inflamed',['antrum','corpus']],
+        '23CHE': ['inflamed',['antrum','corpus']],
+        '15CHE': ['inflamed',['antrum']],
+        '15BHE': ['inflamed',['antrum','corpus']],
+        '66HE': ['non-inflamed',['antrum','corpus']],
+        '18HE': ['non-inflamed',['antrum','intermediate']],
+        '51HE': ['non-inflamed',['corpus']],
+        '25HE': ['non-inflamed',['corpus']],
+        '29HE': ['non-inflamed',['corpus']],
+        '77HE': ['non-inflamed',['corpus']],
+        '6HE': ['non-inflamed',['corpus']],
+        #Nicht für Test gegen Pathologen
 
-    all_predictions= []
+        '36CHE': ['inflamed',['antrum','corpus']],
+        '2CHE': ['inflamed',['antrum','corpus']],
+        '35HE': ['non-inflamed',['antrum','corpus']],
 
-    for wsipath in wsipathlist:
+
+
+    }
+    for slidename in TestSlides:
+
         # open slide with openslide
-        slide = openslide.open_slide(wsipath)
+        path = "/mnt/thempel/scans/" + str(TestSlides[slidename][0]) + "/" +str(slidename) + ".mrxs"
+        slide = openslide.open_slide(path)
 
         tiles = deepzoom.DeepZoomGenerator(slide, tile_size=224, overlap=112, limit_bounds=False)
 
@@ -127,7 +155,6 @@ def TestOnSlides(model_folder: str, test_folder: str):
                 upper_bound = np.array([172, 255, 255])
 
                 if is_tile_of_interest(np_tile, lower_bound, upper_bound):
-                    # if is_white_or_grey_png(single_tile):
                     with torch.inference_mode():
                         # Add an extra dimension to the image
                         single_tile = manual_transforms(single_tile).unsqueeze(dim=0)
@@ -143,15 +170,163 @@ def TestOnSlides(model_folder: str, test_folder: str):
                 else:
                     predictions[r][c] = -1
 
-        #Aggregate to WSI Result via majority voting
-        #1. get rid of -1 and rount probabilities
-        predictions_labels = predictions[predictions != -1].round()
-        pred_class = class_names[int(predictions_labels)]
-        true_class = wsipath.parts[3]
+        # Filter out -1 values and then count zeros and ones
+        valid_predictions = predictions[predictions != -1]
+        #Round predictions for count
+        rounded_predictions = np.round(valid_predictions)
+        #count the classes for
+        count_zeros = np.sum(rounded_predictions == 0)
+        count_ones = np.sum(rounded_predictions == 1)
 
-        all_predictions.append(predictions_labels.item())
-        y_test.append(class_names.index(true_class))
 
+        inflammation_ratios.append([TestSlides[slidename][0] , count_zeros / (count_zeros +  count_ones)])
+
+        PlotInflammedDistribution(inflammationratio=inflammation_ratios, model_folder=model_folder)
+
+        #all_predictions.append(predictions_labels.item())
+        #y_test.append(class_names.index(true_class))
+
+    print(inflammation_ratios)
+
+    #Show distribution with classes
+def TestOnSlides2(model_folder_inf: str, model_folder_tissue: str):
+    # load classes
+    class_names = cfg_hp["class_names"]
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # get model and parameters
+    trained_inf_model, model_results, dict_hyperparameters, summary = get_model(model_folder_inf)
+    trained_tissue_model, model_results, dict_hyperparameters, summary = get_model(model_folder_tissue)
+
+    manual_transforms = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Resize((224, 224)),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+    trained_inf_model.to(device)
+    trained_tissue_model.to(device)
+    # Turn on model evaluation mode and inference mode
+    trained_inf_model.eval()
+    trained_tissue_model.eval()
+
+    #array for predictions
+    inflammation_ratios = []
+    Tissue_ratio = []
+
+
+    TestSlides =   {
+        '40BHE': ['inflamed',['antrum','corpus']],
+        '20BHE': ['inflamed',['antrum']],
+        '3CHE': ['inflamed',['antrum','corpus']],
+        '47BHE': ['inflamed',['antrum','corpus']],
+        '19CHE': ['inflamed',['antrum','corpus']],
+        '23CHE': ['inflamed',['antrum','corpus']],
+        '15CHE': ['inflamed',['antrum']],
+        '15BHE': ['inflamed',['antrum','corpus']],
+        '66HE': ['non-inflamed',['antrum','corpus']],
+        '18HE': ['non-inflamed',['antrum','intermediate']],
+        '51HE': ['non-inflamed',['corpus']],
+        '25HE': ['non-inflamed',['corpus']],
+        '29HE': ['non-inflamed',['corpus']],
+        '77HE': ['non-inflamed',['corpus']],
+        '6HE': ['non-inflamed',['corpus']],
+        #Nicht für Test gegen Pathologen
+
+        '36CHE': ['inflamed',['antrum','corpus']],
+        '2CHE': ['inflamed',['antrum','corpus']],
+        '35HE': ['non-inflamed',['antrum','corpus']],
+
+
+
+    }
+    for slidename in TestSlides:
+
+        # open slide with openslide
+        path = "/mnt/thempel/scans/" + str(TestSlides[slidename][0]) + "/" +str(slidename) + ".mrxs"
+        slide = openslide.open_slide(path)
+
+        tiles = deepzoom.DeepZoomGenerator(slide, tile_size=224, overlap=112, limit_bounds=False)
+
+        col, rows = tiles.level_tiles[15]
+        predictions_inf = np.empty([rows, col])
+        predictions_tissue= np.empty([rows, col])
+
+        for c in range(col):
+            for r in range(rows):
+                single_tile = tiles.get_tile(15, (c, r))
+
+                # Sample usage
+                np_tile = np.array(single_tile)
+
+                # Pink lower bound in HSV
+                lower_bound = np.array([135, 40, 40])
+                # Purple upper bound in HSV
+                upper_bound = np.array([172, 255, 255])
+
+                if is_tile_of_interest(np_tile, lower_bound, upper_bound):
+                    with torch.inference_mode():
+                        # Add an extra dimension to the image
+                        single_tile = manual_transforms(single_tile).unsqueeze(dim=0)
+
+                        # Divide the image pixel values by 255 to get them between [0, 1]
+                        # target_image = single_tile / 255
+
+
+                        # Make a prediction on image with an extra dimension
+                        target_image_pred_inf = trained_inf_model(single_tile.cuda())
+                        target_image_pred_tissue =  trained_tissue_model(single_tile.cuda())
+
+                    target_image_pred_inf_probs = torch.sigmoid(target_image_pred_inf)
+                    predictions_inf[r][c] = target_image_pred_inf_probs.tolist()[0][0]
+                    predictions_tissue[r][c] =target_image_pred_tissue.tolist()[0][0]
+                else:
+                    predictions_inf[r][c] = -1
+                    predictions_tissue[r][c] = -1
+
+        #Evaluation of Inflamed Tiles
+        # Filter out -1 values and then count zeros and ones
+        valid_predictions = predictions_inf[predictions_inf != -1]
+        #Round predictions for count
+        rounded_predictions = np.round(valid_predictions)
+        #count the classes for
+        count_zeros = np.sum(rounded_predictions == 0)
+        count_ones = np.sum(rounded_predictions == 1)
+
+        inflammation_ratios.append([TestSlides[slidename][0] , count_zeros / (count_zeros +  count_ones)])
+
+
+
+
+    print(inflammation_ratios)
+    PlotInflammedDistribution(inflammationratio=inflammation_ratios, model_folder=model_folder_inf)
+    #Show distribution with classes
+
+def PlotInflammedDistribution(inflammationratio: np.array, model_folder):
+# Separate the probabilities
+    inflamed_probs = [prob for label, prob in inflammationratio if label == 'inflamed']
+    non_inflamed_probs = [prob for label, prob in inflammationratio if label == 'non-inflamed']
+
+    plt.rcParams.update({'font.size': 14})
+    # Adjusting the histogram plot for better readability and specific axis scales
+
+    plt.figure(figsize=(12, 8))
+
+    # Creating histograms with specific bin ranges for better readability
+    bins = np.arange(0, 1.1, 0.1)  # Bins from 0 to 1 with 0.1 steps
+    plt.hist(inflamed_probs, bins=bins, alpha=0.7, label='Inflamed', color='red', edgecolor='black')
+    plt.hist(non_inflamed_probs, bins=bins, alpha=0.7, label='Non-Inflamed', color='blue', edgecolor='black')
+
+    plt.title('Distribution of Inflamed to Non-Inflamed ratio')
+    plt.xlabel('Ratio')
+    plt.xticks(bins)  # Setting x-axis ticks for each bin
+    plt.yticks(range(0, int(max(plt.yticks()[0])+2)))  # Setting y-axis ticks to integers
+    plt.ylabel('Frequency')
+
+    plt.savefig(model_folder + '/WSI_Inflammation_Ratio_Distribution.png' )
+
+    plt.legend()
+    plt.grid(axis='y')  # Adding horizontal grid lines for better readability
+    plt.tight_layout()  # Adjust layout
+    plt.show()
 
 
 def SlideHeatmap(heatmap_data: np.array):
@@ -186,36 +361,6 @@ def is_tile_of_interest(tile, lower_thresh, upper_thresh, percentage_thresh=0.05
 
     return percentage > percentage_thresh
 
-
-def is_white_or_grey_png(image: Image.Image, threshold=0.95):
-    """
-    Checks if the given PIL image has a high percentage of white or grey pixels.
-
-    Parameters:
-    - image: A PIL.Image.Image instance.
-    - threshold: The percentage threshold to determine if an image is mostly white or grey.
-
-    Returns:
-    - True if the image's white or grey percentage is less than the given threshold, otherwise False.
-    """
-
-    # Convert the image to grayscale for easy white/grey detection
-    grayscale_image = image.convert("L")
-
-    # Get the pixel data from the image
-    pixels = grayscale_image.load()
-
-    # Get the image size
-    width, height = image.size
-
-    # Count the number of white/grey pixels in the image
-    white_or_grey_pixel_count = sum(pixels[x, y] >= 200 for x in range(width) for y in range(height))
-
-    # Calculate the percentage of white/grey pixels in the image
-    white_or_grey_percentage = white_or_grey_pixel_count / float(width * height)
-
-    # Check if the white/grey percentage is above the threshold
-    return white_or_grey_percentage < threshold
 
 
 # Define a simple Aggregation Network

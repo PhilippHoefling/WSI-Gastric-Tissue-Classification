@@ -176,13 +176,79 @@ def plot_heatmap(csv_path):
 
 
 
-    plt.savefig("heatmap_FlipAndRot_inflammed_valloss.png", bbox_inches='tight', dpi=300)
+    plt.savefig("heatmap_ResNet50_Tissue_valloss", bbox_inches='tight', dpi=300)
     # Display the heatmap
     plt.show()
 
 # Replace 'path_to_csv.csv' with your actual CSV file path
-csv_file_path = 'D:/InflammedResNet50_Flip_Rotation.csv'
+csv_file_path = 'D:/ResNet50Tissue.csv'
 plot_heatmap(csv_file_path)
 #%%
+import torch
+from torchvision import transforms
+from PIL import Image
+import matplotlib.pyplot as plt
+import numpy as np
 
+
+class RandomRot90:
+    np.random.seed(42)
+    def __init__(self, p=0.33):
+        self.p = p
+
+    def __call__(self, x):
+        # Rotate to the left with p=0.33
+        if np.random.random() < self.p:
+            return torch.rot90(x, 1, [1, 2])
+        # Rotate to the right with p=0.33
+        elif np.random.random() < (2 * self.p):
+            return torch.rot90(x, -1, [1, 2])
+        return x
+
+
+
+# Load an image
+image_path = 'C:/Users/phili/OneDrive - Otto-Friedrich-Universität Bamberg/DataSpell/xAIMasterThesis/data/InflamedTiles/test/inflamed/7CHE d-5_x-58735_y-139860_w-2560_h-2560_inflamed.png'  # Replace with your image path
+original_image = Image.open(image_path)
+
+# Define a transform pipeline with all three transforms
+transform_pipeline = transforms.Compose([
+    transforms.RandomRotation(degrees=180),
+])
+
+# Apply the transform pipeline to create five transformed versions of the image
+transformed_images = [transform_pipeline(original_image) for _ in range(5)]
+
+# Define gap size
+gap_size = 10  # Gap of 10 pixels
+
+# Calculate total width with gaps
+total_width = sum(img.width for img in transformed_images) + (len(transformed_images) - 1) * gap_size
+
+# Create a new image that is wide enough to hold all transformed images with gaps
+combined_image = Image.new('RGB', (total_width, transformed_images[0].height))
+
+# Paste each transformed image onto the canvas with gaps
+x_offset = 0
+for img in transformed_images:
+    combined_image.paste(img, (x_offset, 0))
+    x_offset += img.width + gap_size
+
+# Save the combined image
+combined_image.save('RandomRotation.jpg')
+
+print("The combined image with all transformations applied has been saved.")
+
+
+#%%
+
+TestSlides = {
+    '40BHE': ['inflamed',['Corpus','Antrum']],
+    '20BHE': ['inflamed',['Antrum']]
+
+}
+
+for slide in TestSlides:
+    print(slide)
+    print(TestSlides[slide][0])
 #%%

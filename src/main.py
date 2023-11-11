@@ -4,21 +4,22 @@ from BaseLine_AntrumCorpus import train_new_model
 from process import load_sort_data
 from Tile_inference import tile_inference_regression, tile_inference_binary, pred_on_single_image
 from process import plot_file_distribution
-from WSI_Inference import TestOnSingleSlide
+from WSI_Inference import TestOnSingleSlide, TestOnSlides
 from VisionTransformer import trainVIT
 from AntrumCorpusIntermediate import train_new_3model, print_3model_metrices
 from BaseLine_Inflammed import train_new_inf_model
 from auxiliaries import plot_loss_acc_curves
+from EfficientNetB5 import train_new_EFFICIENTNETB5
 
 if __name__ == "__main__":
     # Define dataset paths
     dataset_Tissue_path = 'data/TissueTiles'
     dataset_Inflammed_path = 'data/InflamedTiles'
-    model_folder = "models/TransferLearning_model_30102023_1009"
+    model_folder = "models/TransferLearning_model_07112023_0844"
     test_Tissue_folder = "data/TissueTiles/test"
     test_Inf_folder = "data/InflamedTiles/test"
     tf_model ="imagenet"
-    single_image_path = 'data/TissueTiles/test/corpus/47HE d-5_x-16540_y-3145_w-2560_h-2560_corpus.png'
+    single_image_path = 'data/InflamedTiles/test/inflamed/7CHE d-5_x-58735_y-137940_w-2560_h-2560_inflamed.png'
     test_slidepath = 'C:/Users/phili//OneDrive - Otto-Friedrich-Universität Bamberg/DataSpell/xAIMasterThesis/data/WSIs/94HE.mrxs'
 
     # Set parameter for testing
@@ -27,11 +28,13 @@ if __name__ == "__main__":
     # Set if you want to train a new model or which evualation you want to make on an existing model
     train_model = False
     train_vit = False
-    train_inf_model = True
+    train_inf_model = False
+    train_effNet= False
 
     test_Tissue_Model = False
     test_Inf_Model = False
     testonWSI =  False
+    testonAllWSIS = True
     test_3model = False
     prediction_on_image = False
 
@@ -60,7 +63,7 @@ if __name__ == "__main__":
 
     if test_Tissue_Model:
         logger.info("Start testing the model..")
-        tile_inference_regression(model_folder=model_folder, test_folder=test_Tissue_folder, safe_wrong_preds=True)
+        tile_inference_binary(model_folder=model_folder, test_folder=test_Tissue_folder, safe_wrong_preds=False)
 
     if test_Inf_Model:
         logger.info("Start testing the model..")
@@ -68,15 +71,19 @@ if __name__ == "__main__":
 
     if plot_data_distribution:
         logger.info("Start analyzing dataset..")
-        plot_file_distribution(dataset_path=dataset_Tissue_path)   #%%
+        plot_file_distribution(dataset_path=dataset_Inflammed_path)   #%%
 
     if prediction_on_image:
         logger.info("Start prediction on single image...")
         pred_on_single_image(model_folder=model_folder,single_image_path=single_image_path)   #%%
 
     if testonWSI:
-        logger.info("Start prediction on WSI...")
+        logger.info("Start prediction on all WSIs...")
         TestOnSingleSlide(model_folder=model_folder, slidepath=test_slidepath)   #%%
+
+    if testonAllWSIS:
+        logger.info("Start prediction on WSI...")
+        TestOnSlides(model_folder=model_folder)
 
     if printLossCurves:
         logger.info("Start printing loss/accuracy curves...")
@@ -94,8 +101,13 @@ if __name__ == "__main__":
         model_folder = train_new_inf_model(dataset_path=dataset_Inflammed_path,tf_model=tf_model)
         logger.info("Congratulations, training the baseline models was successful!" + str(model_folder))
 
+    if train_effNet:
+        model_folder = train_new_EFFICIENTNETB5(dataset_path=dataset_Inflammed_path,tf_model=tf_model)
+        logger.info("Congratulations, training the baseline models was successful!" + str(model_folder))
+
     if test_3model:
         logger.info("Start testing the model..")
         print_3model_metrices(model_folder=model_folder, test_folder=test_Tissue_folder)   #%%
+
 
 #%%

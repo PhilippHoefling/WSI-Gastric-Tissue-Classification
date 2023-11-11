@@ -117,12 +117,14 @@ def plot_file_distribution(dataset_path):
     bar_width = 0.8 / num_classes  # Adjusted bar width
     index = np.arange(num_datasets)
 
+    colors = ['C0', 'C1', 'C2']
+
     fig, ax = plt.subplots(figsize=(10, 6))
 
     for i, cls in enumerate(classes):
         counts = [class_counts[dataset][cls] for dataset in datasets]
         bar_positions = index + i * bar_width
-        ax.bar(bar_positions, counts, bar_width, label=cls)
+        ax.bar(bar_positions, counts, bar_width, label=cls, color=colors[i])
 
     ax.set_xlabel('Dataset')
     ax.set_ylabel('Number of Samples')
@@ -131,7 +133,9 @@ def plot_file_distribution(dataset_path):
     ax.set_xticklabels(datasets)
     ax.legend()
 
+    plt.grid(True, which='both', axis='y', linestyle='--', linewidth=0.5)  # Add grid lines
     plt.tight_layout()
+    plt.savefig('class_distribution.png', dpi=300)  # Save the figure with high resolution
     plt.show()
 
 

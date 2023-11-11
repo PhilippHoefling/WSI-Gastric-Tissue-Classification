@@ -16,6 +16,14 @@ import torchvision
 from torch import nn
 from auxiliaries import store_model
 
+from torchvision.models import efficientnet_b5, EfficientNet_B5_Weights
+from torchvision.models._api import WeightsEnum
+from torch.hub import load_state_dict_from_url
+
+def get_state_dict(self, *args, **kwargs):
+    kwargs.pop("check_hash")
+    return load_state_dict_from_url(self.url, *args, **kwargs)
+
 
 def create_dataloaders(train_dir: str,
                        val_dir: str,
@@ -60,36 +68,20 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
     return: dataloaders for training and validation, list of the class names in the dataset
     '''
 
-
     train_transforms = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
-
-    augmentation_pipeline_2 = transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((456, 456)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.RandomRotation(degrees=180),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
-
-    augmentation_pipeline_3 = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(degrees=180),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5.)),
+
         transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
 
 
     val_transforms = transforms.Compose([
-        transforms.Resize((224,224)),
+        transforms.Resize((456, 456)),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
@@ -118,26 +110,21 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     Load the pretrainind ResNet50 pytorch model with or without weights
     return: model and the pretrained weights
     '''
+    WeightsEnum.get_state_dict = get_state_dict
+
     # Set the manual seeds
     torch.manual_seed(cfg_hp["seed"])
     torch.cuda.manual_seed(cfg_hp["seed"])
-    # Load weights from
-    weights = torchvision.models.ResNet50_Weights
 
-    # Load pretrained model with or without weights
-    if tf_model =='imagenet':
-        # Load pretrained ResNet50 Model
-        model = torchvision.models.resnet50(weights)
-
-    #elif tf_model =='PathDat':
-    #    model = resnet50(pretrained=True, progress=False, key="BT")
-    #    return model
+    # Load weights
+    if tf_model == 'imagenet':
+        model = efficientnet_b5(weights="DEFAULT")
     else:
-        model = torchvision.models.resnet50()
+        model = torchvision.models.efficientnet_b5(weights=None)
 
-    num_ftrs = model.fc.in_features
+    num_ftrs = model.classifier[1].in_features
     # Recreate classifier layer with an additional layer in between
-    model.fc = torch.nn.Sequential(
+    model.classifier = torch.nn.Sequential(
         torch.nn.Linear(in_features=num_ftrs, out_features=1))
 
 
@@ -152,13 +139,14 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
 
     return model
 
-def train_new_model(dataset_path: str, tf_model: str):
+def train_new_EFFICIENTNETB5(dataset_path: str, tf_model: str):
     '''
     Initializes the directories of the dataset, stores the selected model type, chooses the availabe device, initialize the model,
     loads the data, adjustes the last layer of the model architecture, Initializes the loss and the optimizer, sets seeds.
     creates a dictionary to store the used hyperparameters, grid search hyperparameter tuning, excecutes the training process
     return: The directory of the new trained model
     '''
+
 
     train_dir = dataset_path + "/train"
     val_dir = dataset_path + "/val"

@@ -41,18 +41,19 @@ def get_storage_name(targetfolder: str, model_name: str, timestampStr: str):
 
     return folderpath
 
+
 def plot_loss_acc_curves(model_folder: str):
-    # Plots training curves of a results dictionary and saves figures into model directory
-    #return: Nothing
+    # Assuming get_model is a function you've defined elsewhere that loads your model and results
     trained_model, model_results, dict_hyperparameters, summary = get_model(Path(model_folder))
+
     loss = model_results["train_loss"]
     val_loss = model_results["val_loss"]
-
     accuracy = model_results["train_acc"]
     val_accuracy = model_results["val_acc"]
+    epochs = range(len(loss))
 
-    epochs = range(len(model_results["train_loss"]))
-    print(model_results)
+    # Set the global font size
+    plt.rcParams.update({'font.size': 14})
 
     plt.figure(figsize=(15, 7))
 
@@ -62,6 +63,7 @@ def plot_loss_acc_curves(model_folder: str):
     plt.plot(epochs, val_loss, label="val_loss")
     plt.title("Loss")
     plt.xlabel("Epochs")
+    plt.ylabel("Loss")
     axl = plt.gca()
     axl.set_ylim([0, 1.4])
     plt.legend()
@@ -72,10 +74,12 @@ def plot_loss_acc_curves(model_folder: str):
     plt.plot(epochs, val_accuracy, label="val_accuracy")
     plt.title("Accuracy")
     plt.xlabel("Epochs")
-    plt.legend()
+    plt.ylabel("Accuracy")
     axa = plt.gca()
     axa.set_ylim([0.3, 1])
-    plt.savefig(model_folder + "/" + "train_loss_acc.png")
+    plt.legend()
+
+    plt.savefig(Path(model_folder) / "train_loss_acc.png")
     plt.show()
 
 def store_model(target_dir_new_model: str, tf_model: bool, model_name: str, hyperparameter_dict: dict,

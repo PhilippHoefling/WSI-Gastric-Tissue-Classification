@@ -41,6 +41,7 @@ def pred_on_single_image(single_image_path, model_folder: str):
         target_image = target_image.unsqueeze(dim=0)
         # Make a prediction on image with an extra dimension
         target_image_pred = trained_model(target_image.cuda())
+        target_image_pred = torch.sigmoid(target_image_pred)
         print(target_image_pred)
     # )
     _, predicted_idx = torch.max(target_image_pred, 1)
@@ -124,17 +125,16 @@ def tile_inference_binary(model_folder: str, test_folder: str, safe_wrong_preds:
 
             csv_writer.writerow( false_pred_path)
 
-    print(y_test)
-    print(predictions)
+
     ConfusionMatrixDisplay.from_predictions(y_test, predictions, display_labels=class_names, cmap='Blues',
                                             colorbar=False)
     plt.savefig(model_folder + '/test_confusion_matrix.png')
     plt.show()
 
     print("Accuracy on test set: " + str(sum(accuracy) / len(accuracy) * 100) + " %")
-    print("Precision on test set " + str(precision_score(y_test, predictions, average='macro')))
-    print("Recall on test set " + str(recall_score(y_test, predictions, average='macro')))
-    print("F1 Score on test set " + str(f1_score(y_test, predictions, average='macro')))
+    print("Precision on test set " + str(precision_score(y_test, predictions, average='binary')))
+    print("Recall on test set " + str(recall_score(y_test, predictions, average='binary')))
+    print("F1 Score on test set " + str(f1_score(y_test, predictions, average='binary')))
     # print("Log-Loss on test set " + str(log_loss(y_test, predictions)))
 
 
@@ -231,17 +231,16 @@ def tile_inference_regression(model_folder: str, test_folder: str, safe_wrong_pr
 
     #plot_roc_curve(model_folder=model_folder, y_true=y_test, y_scores=probabilities)
 
-    plot_prob_distribution(model_folder=model_folder,  prob_distibution=prob_distibution)
+    plot_prob_distribution(model_folder=model_folder,  prob_distibution=prob_distibution, filename = 'Tile_Test_Distribution')
 
     #plot_roc_curve(y_test,target_image_pred_probs)
 def plot_roc_curve(model_folder, y_true, y_scores, title='ROC Curve'):
 
 
     fpr, tpr, thresholds = roc_curve(y_true, y_scores)
-    print(fpr)
-    print(tpr)
     roc_auc = auc(fpr, tpr)
 
+    plt.rcParams.update({'font.size': 14})
     plt.figure()
     plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
     plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
@@ -255,7 +254,7 @@ def plot_roc_curve(model_folder, y_true, y_scores, title='ROC Curve'):
     plt.savefig(model_folder + '/test_ROC_curve.png')
     plt.show()
 
-def plot_prob_distribution(model_folder, prob_distibution):
+def plot_prob_distribution(model_folder, prob_distibution, filename: str):
     # Find unique Classes
     unique_classes = list(set([entry[0] for entry in prob_distibution]))
 
@@ -272,6 +271,6 @@ def plot_prob_distribution(model_folder, prob_distibution):
     plt.ylabel("Frequency")
     plt.legend(loc='upper right')
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-    plt.savefig(model_folder + '/test_Prob_Distribution.png')
+    plt.savefig(model_folder + '/' + filename)
     plt.show()
 #%%
