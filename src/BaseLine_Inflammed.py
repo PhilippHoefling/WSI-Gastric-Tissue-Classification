@@ -16,7 +16,6 @@ import torchvision
 from torch import nn
 from auxiliaries import store_model
 
-
 def create_dataloaders(train_dir: str,
                        val_dir: str,
                        val_transform: transforms.Compose,
@@ -105,15 +104,6 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
     print(class_names)
     return train_dataloader, val_dataloader, class_names
 
-
-
-def loading(folder_name: str):
-    direc = os.path.join(
-        folder_name)
-    return os.listdir(direc), len(os.listdir(direc))
-
-
-
 def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int):
     '''
     Load the pretrainind ResNet50 pytorch model with or without weights
@@ -129,7 +119,6 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     if tf_model =='imagenet':
         # Load pretrained ResNet50 Model
         model = torchvision.models.resnet50(weights)
-
     #elif tf_model =='PathDat':
     #    model = resnet50(pretrained=True, progress=False, key="BT")
     #    return model
@@ -188,11 +177,17 @@ def train_new_inf_model(dataset_path: str, tf_model: str):
 
             # Define loss and optimizer
             loss_fn = nn.BCEWithLogitsLoss()
-            optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=1e-4)
+            #optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l])
 
             #learning rate scheduler
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=75, eta_min=0)
+            #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=75, eta_min=0)
 
+
+            # Observe that all parameters are being optimized
+            optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+
+            # Define the learning rate scheduler
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
             # Set the random seeds
             torch.manual_seed(cfg_hp["seed"])
@@ -294,9 +289,9 @@ def train(target_dir_new_model: str,
         min_val_loss = min(results["val_loss"])
         # Early Stopping
         if results["val_loss"][-1] > min_val_loss:
-            early_stopping = early_stopping + 1
+           early_stopping = early_stopping + 1
         else:
-            # End the timer and print out how long it took
+           # End the timer and print out how long it took
             end_time = timer()
 
             time.sleep(10)
@@ -304,11 +299,11 @@ def train(target_dir_new_model: str,
             model_folder = store_model(target_dir_new_model, tf_model, model_name, hyperparameter_dict, trained_epochs,
                                        model, results, batch_size, total_train_time, timestampStr)
             early_stopping = 0
-
         if early_stopping == cfg_hp["patience"]:
             break
         else:
             continue
+
 
     return results, model_folder
 
@@ -364,7 +359,7 @@ def train_step(model: torch.nn.Module,
 
     # Adjust the learning rate based on the scheduler
     if trained_epochs > 10:
-     scheduler.step()
+        scheduler.step()
 
     average_loss = total_loss / len(dataloader)
     accuracy = correct_predictions / total_samples

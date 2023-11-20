@@ -70,7 +70,6 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
         transforms.Resize((224,224)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(degrees=180),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
@@ -126,7 +125,7 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between
     model.fc = torch.nn.Sequential(
-        torch.nn.Linear(in_features=num_ftrs, out_features=3))
+        torch.nn.Linear(in_features=num_ftrs, out_features=2))
 
 
     # Unfreeze all the layers
@@ -174,10 +173,10 @@ def train_new_3model(dataset_path: str, tf_model: str):
 
                 # Define loss and optimizer
                 loss_fn = nn.CrossEntropyLoss()
-                optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=1e-4)
+                optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-                #learning rate scheduler
-                scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20 , gamma=0.1)
+                # Define the learning rate scheduler
+                scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
 
                 # Set the random seeds

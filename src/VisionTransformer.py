@@ -17,35 +17,22 @@ from torch import nn
 from auxiliaries import store_model
 
 
-def get_pretrained_url(key):
-    URL_PREFIX = "https://github.com/lunit-io/benchmark-ssl-pathology/releases/download/pretrained-weights"
-    model_zoo_registry = {
-        "DINO_p16": "dino_vit_small_patch16_ep200.torch",
-        "DINO_p8": "dino_vit_small_patch8_ep200.torch",
-    }
-    pretrained_url = f"{URL_PREFIX}/{model_zoo_registry.get(key)}"
-    return pretrained_url
-
-
-
-def vit_small(pretrained, progress, key, num_classes, **kwargs):
-    patch_size = kwargs.get("patch_size", 16)
-    model =timm.create_model("vit_base_patch16_224", pretrained=True)
-    #VisionTransformer(
-    #    img_size=224, patch_size=patch_size, embed_dim=384, num_heads=6, num_classes=1, pretrained=True )
-    #if pretrained:
-        #pretrained_url = get_pretrained_url(key)
-        #verbose = model.load_state_dict(
-        #    torch.hub.load_state_dict_from_url(pretrained_url, progress=progress)
-        #)
-        #print(verbose)
-    # Modify Vision Transformer Head to Binary Output
-    model.head = nn.Linear(model.head.in_features, 1)
-    return model
-
-
 def trainVIT(dataset_path: str):
-    model = vit_small(pretrained=True, progress=False, key="DINO_p16", patch_size=16, num_classes=1)
+    model = timm.create_model('cct_14_7x2_384', pretrained=True)
+
+    # Replace the final layer with a single output neuron and a sigmoid activation
+    model.head = nn.Sequential(
+    nn.Linear(model.head.in_features, 1))
+
+    # Unfreeze all the layers
+    for param in model.parameters():
+        param.requires_grad = True
+
+    # Speed up training
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
+
+
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -134,7 +121,7 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
 
 
     train_transforms = transforms.Compose([
-        transforms.Resize((224,224)),
+        transforms.Resize((384,384)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.RandomRotation(degrees=180),
@@ -143,7 +130,7 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
     ])
 
     val_transforms = transforms.Compose([
-        transforms.Resize((224,224)),
+        transforms.Resize((384,384)),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])

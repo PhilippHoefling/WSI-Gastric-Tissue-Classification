@@ -16,7 +16,7 @@ import torchvision
 from torch import nn
 from auxiliaries import store_model
 
-from torchvision.models import efficientnet_b5, EfficientNet_B5_Weights
+from torchvision.models import efficientnet_v2_s
 from torchvision.models._api import WeightsEnum
 from torch.hub import load_state_dict_from_url
 
@@ -69,7 +69,7 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
     '''
 
     train_transforms = transforms.Compose([
-        transforms.Resize((456, 456)),
+        transforms.Resize((384, 384)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.RandomRotation(degrees=180),
@@ -118,9 +118,9 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
 
     # Load weights
     if tf_model == 'imagenet':
-        model = efficientnet_b5(weights="DEFAULT")
+        model = efficientnet_v2_s(weights="DEFAULT")
     else:
-        model = torchvision.models.efficientnet_b5(weights=None)
+        model = torchvision.models.efficientnet_v2_s(weights=None)
 
     num_ftrs = model.classifier[1].in_features
     # Recreate classifier layer with an additional layer in between
@@ -139,7 +139,7 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
 
     return model
 
-def train_new_EFFICIENTNETB5(dataset_path: str, tf_model: str):
+def train_new_EFFICIENTNET(dataset_path: str, tf_model: str):
     '''
     Initializes the directories of the dataset, stores the selected model type, chooses the availabe device, initialize the model,
     loads the data, adjustes the last layer of the model architecture, Initializes the loss and the optimizer, sets seeds.

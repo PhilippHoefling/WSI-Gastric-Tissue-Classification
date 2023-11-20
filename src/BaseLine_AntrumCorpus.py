@@ -63,15 +63,15 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
 
     train_transforms = transforms.Compose([
         transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.RandomRotation(degrees=180),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
 
     augmentation_pipeline_2 = transforms.Compose([
         transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(degrees=180),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
@@ -122,18 +122,18 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     torch.manual_seed(cfg_hp["seed"])
     torch.cuda.manual_seed(cfg_hp["seed"])
     # Load weights from
-    weights = torchvision.models.ResNet50_Weights
+    weights = torchvision.models.ResNet18_Weights
 
     # Load pretrained model with or without weights
     if tf_model =='imagenet':
         # Load pretrained ResNet50 Model
-        model = torchvision.models.resnet50(weights)
+        model = torchvision.models.resnet18(weights)
 
     #elif tf_model =='PathDat':
     #    model = resnet50(pretrained=True, progress=False, key="BT")
     #    return model
     else:
-        model = torchvision.models.resnet50()
+        model = torchvision.models.resnet18()
 
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between
@@ -187,7 +187,7 @@ def train_new_model(dataset_path: str, tf_model: str):
 
             # Define loss and optimizer
             loss_fn = nn.BCEWithLogitsLoss()
-            optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l], weight_decay=1e-4)
+            optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l])
 
             #learning rate scheduler
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=75, eta_min=0)
@@ -361,9 +361,8 @@ def train_step(model: torch.nn.Module,
         correct_predictions += (predicted == labels).sum().item()
         total_samples += labels.size(0)
 
-    # Adjust the learning rate based on the scheduler
-    if trained_epochs > 10:
-        scheduler.step()
+
+    scheduler.step()
 
     average_loss = total_loss / len(dataloader)
     accuracy = correct_predictions / total_samples

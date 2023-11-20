@@ -12,6 +12,7 @@ import torch.optim as optim
 from auxiliaries import get_model
 import math
 
+
 from Tile_inference import plot_prob_distribution
 
 # workaround for Openslide import
@@ -85,111 +86,8 @@ def TestOnSingleSlide(model_folder: str, slidepath: str):
     # Visualize Results in a Heatmap
     SlideHeatmap(heatmap_data=predictions)
 
-def TestOnSlides(model_folder: str):
-    # load classes
-    class_names = cfg_hp["class_names"]
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    # get model and parameters
-    trained_model, model_results, dict_hyperparameters, summary = get_model(model_folder)
 
-    manual_transforms = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Resize((224, 224)),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
-    trained_model.to(device)
-    # Turn on model evaluation mode and inference mode
-    trained_model.eval()
-
-    #array for true class
-    y_test = []
-    #array for predictions
-    inflammation_ratios = []
-    printInfRatio = []
-    TestSlides =   {
-        '40BHE': ['inflamed',['antrum','corpus']],
-        '20BHE': ['inflamed',['antrum']],
-        '3CHE': ['inflamed',['antrum','corpus']],
-        '47BHE': ['inflamed',['antrum','corpus']],
-        '19CHE': ['inflamed',['antrum','corpus']],
-        '23CHE': ['inflamed',['antrum','corpus']],
-        '15CHE': ['inflamed',['antrum']],
-        '15BHE': ['inflamed',['antrum','corpus']],
-        '66HE': ['non-inflamed',['antrum','corpus']],
-        '18HE': ['non-inflamed',['antrum','intermediate']],
-        '51HE': ['non-inflamed',['corpus']],
-        '25HE': ['non-inflamed',['corpus']],
-        '29HE': ['non-inflamed',['corpus']],
-        '77HE': ['non-inflamed',['corpus']],
-        '6HE': ['non-inflamed',['corpus']],
-        #Nicht für Test gegen Pathologen
-
-        '36CHE': ['inflamed',['antrum','corpus']],
-        '2CHE': ['inflamed',['antrum','corpus']],
-        '35HE': ['non-inflamed',['antrum','corpus']],
-
-
-
-    }
-    for slidename in TestSlides:
-
-        # open slide with openslide
-        path = "/mnt/thempel/scans/" + str(TestSlides[slidename][0]) + "/" +str(slidename) + ".mrxs"
-        slide = openslide.open_slide(path)
-
-        tiles = deepzoom.DeepZoomGenerator(slide, tile_size=224, overlap=112, limit_bounds=False)
-
-        col, rows = tiles.level_tiles[15]
-        predictions = np.empty([rows, col])
-
-        for c in range(col):
-            for r in range(rows):
-                single_tile = tiles.get_tile(15, (c, r))
-
-                # Sample usage
-                np_tile = np.array(single_tile)
-
-                # Pink lower bound in HSV
-                lower_bound = np.array([135, 40, 40])
-                # Purple upper bound in HSV
-                upper_bound = np.array([172, 255, 255])
-
-                if is_tile_of_interest(np_tile, lower_bound, upper_bound):
-                    with torch.inference_mode():
-                        # Add an extra dimension to the image
-                        single_tile = manual_transforms(single_tile).unsqueeze(dim=0)
-
-                        # Divide the image pixel values by 255 to get them between [0, 1]
-                        # target_image = single_tile / 255
-
-                        # Make a prediction on image with an extra dimension
-                        target_image_pred = trained_model(single_tile.cuda())
-
-                    target_image_pred_probs = torch.sigmoid(target_image_pred)
-                    predictions[r][c] = target_image_pred_probs.tolist()[0][0]
-                else:
-                    predictions[r][c] = -1
-
-        # Filter out -1 values and then count zeros and ones
-        valid_predictions = predictions[predictions != -1]
-        #Round predictions for count
-        rounded_predictions = np.round(valid_predictions)
-        #count the classes for
-        count_zeros = np.sum(rounded_predictions == 0)
-        count_ones = np.sum(rounded_predictions == 1)
-
-
-        inflammation_ratios.append([TestSlides[slidename][0] , count_zeros / (count_zeros +  count_ones)])
-
-        PlotInflammedDistribution(inflammationratio=inflammation_ratios, model_folder=model_folder)
-
-        #all_predictions.append(predictions_labels.item())
-        #y_test.append(class_names.index(true_class))
-
-    print(inflammation_ratios)
-
-    #Show distribution with classes
-def TestOnSlides2(model_folder_inf: str, model_folder_tissue: str):
+def TestOnSlides(model_folder_inf: str, model_folder_tissue: str):
     # load classes
     class_names = cfg_hp["class_names"]
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -210,33 +108,29 @@ def TestOnSlides2(model_folder_inf: str, model_folder_tissue: str):
 
     #array for predictions
     inflammation_ratios = []
-    Tissue_ratio = []
+    tissue_ratios = []
 
 
     TestSlides =   {
-        '40BHE': ['inflamed',['antrum','corpus']],
-        '20BHE': ['inflamed',['antrum']],
+        '25HE': ['non-inflamed',['corpus']],
+        '15BHE': ['inflamed',['antrum','corpus']],
+        '36CHE': ['inflamed',['antrum','corpus']],
+        '6HE': ['non-inflamed',['corpus']],
+        '2CHE': ['inflamed',['antrum','corpus']],
+        '77HE': ['non-inflamed',['corpus']],
         '3CHE': ['inflamed',['antrum','corpus']],
+        '40BHE': ['inflamed',['antrum','corpus']],
+        '15CHE': ['inflamed',['antrum']],
+        '29HE': ['non-inflamed',['corpus']],
+        '51HE': ['non-inflamed',['corpus']],
+        '35HE': ['non-inflamed',['corpus','intermediate']],
+        '66HE': ['non-inflamed',['antrum','corpus']],
         '47BHE': ['inflamed',['antrum','corpus']],
         '19CHE': ['inflamed',['antrum','corpus']],
-        '23CHE': ['inflamed',['antrum','corpus']],
-        '15CHE': ['inflamed',['antrum']],
-        '15BHE': ['inflamed',['antrum','corpus']],
-        '66HE': ['non-inflamed',['antrum','corpus']],
-        '18HE': ['non-inflamed',['antrum','intermediate']],
-        '51HE': ['non-inflamed',['corpus']],
-        '25HE': ['non-inflamed',['corpus']],
-        '29HE': ['non-inflamed',['corpus']],
-        '77HE': ['non-inflamed',['corpus']],
-        '6HE': ['non-inflamed',['corpus']],
-        #Nicht für Test gegen Pathologen
-
-        '36CHE': ['inflamed',['antrum','corpus']],
-        '2CHE': ['inflamed',['antrum','corpus']],
-        '35HE': ['non-inflamed',['antrum','corpus']],
-
-
-
+        '20BHE': ['inflamed',['antrum']],
+        #'18HE': ['non-inflamed',['corpus','intermediate']],
+        #'22BHE': ['inflamed',['corpus']],
+        #'23CHE': ['inflamed',['antrum','corpus']]
     }
     for slidename in TestSlides:
 
@@ -276,28 +170,32 @@ def TestOnSlides2(model_folder_inf: str, model_folder_tissue: str):
                         target_image_pred_tissue =  trained_tissue_model(single_tile.cuda())
 
                     target_image_pred_inf_probs = torch.sigmoid(target_image_pred_inf)
+                    target_image_pred_tissue_probs = torch.sigmoid(target_image_pred_tissue)
+
                     predictions_inf[r][c] = target_image_pred_inf_probs.tolist()[0][0]
-                    predictions_tissue[r][c] =target_image_pred_tissue.tolist()[0][0]
+                    predictions_tissue[r][c] =target_image_pred_tissue_probs.tolist()[0][0]
                 else:
                     predictions_inf[r][c] = -1
                     predictions_tissue[r][c] = -1
 
         #Evaluation of Inflamed Tiles
         # Filter out -1 values and then count zeros and ones
-        valid_predictions = predictions_inf[predictions_inf != -1]
-        #Round predictions for count
-        rounded_predictions = np.round(valid_predictions)
-        #count the classes for
-        count_zeros = np.sum(rounded_predictions == 0)
-        count_ones = np.sum(rounded_predictions == 1)
+        valid_inf_predictions = predictions_inf[predictions_inf != -1]
+        valid_tissue_predictions = predictions_inf[predictions_tissue != -1]
 
-        inflammation_ratios.append([TestSlides[slidename][0] , count_zeros / (count_zeros +  count_ones)])
+        inflammation_ratios.append([TestSlides[slidename][0] , np.mean(valid_inf_predictions)])
+        tissue_ratios.append([TestSlides[slidename][1] , np.mean(valid_tissue_predictions)])
+
+        # Filter out -1 values and then count zeros and ones
 
 
 
 
     print(inflammation_ratios)
     PlotInflammedDistribution(inflammationratio=inflammation_ratios, model_folder=model_folder_inf)
+
+    print( tissue_ratios)
+    PlottissueDistribution(tissueratio= tissue_ratios, model_folder=model_folder_tissue)
     #Show distribution with classes
 
 def PlotInflammedDistribution(inflammationratio: np.array, model_folder):
@@ -327,7 +225,35 @@ def PlotInflammedDistribution(inflammationratio: np.array, model_folder):
     plt.grid(axis='y')  # Adding horizontal grid lines for better readability
     plt.tight_layout()  # Adjust layout
     plt.show()
+def PlottissueDistribution(tissueratio: np.array, model_folder):
+    # Separate the probabilities
+    antrum_probs = [prob for label, prob in tissueratio if label == ['antrum']]
+    corpus_probs = [prob for label, prob in tissueratio if label == ['corpus']]
+    bothtissue_probs = [prob for label, prob in tissueratio if label == ['antrum','corpus']]
 
+    plt.rcParams.update({'font.size': 14})
+    # Adjusting the histogram plot for better readability and specific axis scales
+
+    plt.figure(figsize=(12, 8))
+
+    # Creating histograms with specific bin ranges for better readability
+    bins = np.arange(0, 1.1, 0.1)  # Bins from 0 to 1 with 0.1 steps
+    plt.hist(antrum_probs, bins=bins, alpha=0.7, label='Antrum', color='red', edgecolor='black')
+    plt.hist(corpus_probs, bins=bins, alpha=0.7, label='Corpus', color='blue', edgecolor='black')
+    plt.hist(bothtissue_probs, bins=bins, alpha=0.7, label='Antrum&Corpus', color='orange', edgecolor='black')
+
+    plt.title('Distribution of Antrum Corpus ratio')
+    plt.xlabel('Ratio')
+    plt.xticks(bins)  # Setting x-axis ticks for each bin
+    plt.yticks(range(0, int(max(plt.yticks()[0])+2)))  # Setting y-axis ticks to integers
+    plt.ylabel('Frequency')
+
+    plt.savefig(model_folder + '/WSI_Tissue_Ratio_Distribution.png' )
+
+    plt.legend()
+    plt.grid(axis='y')  # Adding horizontal grid lines for better readability
+    plt.tight_layout()  # Adjust layout
+    plt.show()
 
 def SlideHeatmap(heatmap_data: np.array):
     # Create a heatmap using matplotlib
@@ -362,70 +288,4 @@ def is_tile_of_interest(tile, lower_thresh, upper_thresh, percentage_thresh=0.05
     return percentage > percentage_thresh
 
 
-
-# Define a simple Aggregation Network
-class AggregationNetwork(nn.Module):
-    def __init__(self, input_size, hidden_size):
-        super(AggregationNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(hidden_size, 1)
-        self.softmax = nn.Sigmoid()  # Sigmoid activation for binary classification
-
-    def forward(self, x):
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.fc2(x)
-        x = self.softmax(x)
-        return x
-
-
-def aggregateResults(predictions: np.array):
-    patch_level_predictions = torch.tensor(predictions)
-    batch_size, num_patches, num_classes = predictions.size()
-    input_size = num_patches * num_classes
-    flattened_predictions = patch_level_predictions.view(batch_size, -1)
-
-    # Create the Aggregation Network
-    hidden_size = 64  # Adjust as needed
-    aggregation_net = AggregationNetwork(input_size, hidden_size)
-
-    # Perform forward pass to obtain slide-level prediction
-    slide_level_prediction = aggregation_net(flattened_predictions)
-
-    print(slide_level_prediction)
-
-
-def train_aggregation_network(aggregation_net, train_loader, num_epochs, learning_rate):
-    # Define Binary Cross-Entropy Loss and Adam optimizer
-    criterion = nn.BCELoss()
-    optimizer = optim.Adam(aggregation_net.parameters(), lr=learning_rate)
-
-    # Training loop
-    for epoch in range(num_epochs):
-        total_loss = 0.0
-
-        for inputs, labels in train_loader:
-            # Flatten patch-level predictions for each batch
-            inputs = inputs.view(inputs.size(0), -1)
-
-            # Zero the gradients
-            optimizer.zero_grad()
-
-            # Forward pass
-            outputs = aggregation_net(inputs)
-
-            # Compute the loss
-            loss = criterion(outputs, labels.float())  # Convert labels to float
-            total_loss += loss.item()
-
-            # Backpropagation and optimization
-            loss.backward()
-            optimizer.step()
-
-        # Print average loss for this epoch
-        average_loss = total_loss / len(train_loader)
-        print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {average_loss:.4f}')
-
-    print('Training complete.')
 # %%

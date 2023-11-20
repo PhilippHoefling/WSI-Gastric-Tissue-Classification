@@ -161,14 +161,14 @@ def plot_heatmap(csv_path):
 
     # Pivot the DataFrame to create a matrix with dropout rates as rows,
     # learning rates as columns, and validation loss as values
-    heatmap_data = df.pivot('batch_size', 'learning_rate', 'val_loss')
+    heatmap_data = df.pivot('batch_size', 'learning_rate', 'val_acc')
 
     # Create the heatmap using seaborn
     heatmap = sns.heatmap(heatmap_data, annot=True, fmt=".3f", cmap='viridis')
 
     # Add a label to the color bar
     colorbar = heatmap.collections[0].colorbar
-    colorbar.set_label('Validation Loss')
+    colorbar.set_label('Validation Accuracy')
 
     # Add labels and a title for clarity
     plt.xlabel('Learning Rate')
@@ -176,12 +176,12 @@ def plot_heatmap(csv_path):
 
 
 
-    plt.savefig("heatmap_ResNet50_Tissue_valloss", bbox_inches='tight', dpi=300)
+    plt.savefig("heatmap_ResNet50_Tissue_vallacc", bbox_inches='tight', dpi=300)
     # Display the heatmap
     plt.show()
 
 # Replace 'path_to_csv.csv' with your actual CSV file path
-csv_file_path = 'D:/ResNet50Tissue.csv'
+csv_file_path = 'D:/ResNet50TissueAugmentation.csv'
 plot_heatmap(csv_file_path)
 #%%
 import torch
@@ -241,14 +241,144 @@ print("The combined image with all transformations applied has been saved.")
 
 
 #%%
+import numpy as np
+TestSlides =   {
+    '25HE': ['non-inflamed',['corpus']],
+    '15BHE': ['inflamed',['antrum','corpus']],
+    '36CHE': ['inflamed',['antrum','corpus']],
+    '6HE': ['non-inflamed',['corpus']],
+    '2CHE': ['inflamed',['antrum','corpus']],
+    '77HE': ['non-inflamed',['corpus']],
+    '3CHE': ['inflamed',['antrum','corpus']],
+    '40BHE': ['inflamed',['antrum','corpus']],
+    '15CHE': ['inflamed',['antrum']],
+    '29HE': ['non-inflamed',['corpus']],
+    '51HE': ['non-inflamed',['corpus']],
+    '35HE': ['non-inflamed',['corpus','intermediate']],
+    '18HE': ['non-inflamed',['corpus','intermediate']],
+    '47BHE': ['inflamed',['antrum','corpus']],
+    '19CHE': ['inflamed',['antrum','corpus']],
 
-TestSlides = {
-    '40BHE': ['inflamed',['Corpus','Antrum']],
-    '20BHE': ['inflamed',['Antrum']]
+    #nicht für test relevant
+    '20BHE': ['inflamed',['antrum']],
+    '66HE': ['non-inflamed',['antrum','corpus']],
 
+    '22BHE': ['inflamed',['corpus']],
+    '23CHE': ['inflamed',['antrum','corpus']]
 }
+# Setting the seed for reproducibility
+np.random.seed(42)
 
-for slide in TestSlides:
-    print(slide)
-    print(TestSlides[slide][0])
+# Randomly select 15 keys
+random_keys = np.random.choice(list(TestSlides.keys()), size=15, replace=False)
+
+# Create a new dictionary with the selected entries
+selected_entries = {key: TestSlides[key] for key in random_keys}
+
+print(selected_entries)
+#%%
+import os
+
+def find_png_in_subfolders(main_folder, search_folder):
+    # Set to store all PNG paths in main_folder
+    all_pngs_in_main_folder = set()
+
+    # Walk through all directories and subdirectories in main_folder
+    for root, dirs, files in os.walk(main_folder):
+        for file in files:
+            if file.endswith('.png'):
+                all_pngs_in_main_folder.add(file)
+
+    # Set to store all PNG paths in search_folder
+    all_pngs_in_search_folder = set()
+
+    # Walk through all directories and subdirectories in search_folder
+    for root, dirs, files in os.walk(search_folder):
+        for file in files:
+            if file.endswith('.png'):
+                all_pngs_in_search_folder.add(file)
+
+    # Check each file in the main folder if it's in the search folder
+    for file in all_pngs_in_main_folder:
+        if file not in all_pngs_in_search_folder:
+            print(f"{file} not found in any subfolders of {search_folder}")
+
+
+# Example usage
+main_folder = 'D:/TomsGastricTest'
+search_folder = 'C:/Users/phili/OneDrive - Otto-Friedrich-Universität Bamberg/DataSpell/xAIMasterThesis/data/InflamedTomTiles/test'
+find_png_in_subfolders(main_folder, search_folder)
+
+#%%
+import os
+import csv
+
+def write_filenames_to_csv(folder_path, csv_file_path):
+    """
+    Writes every filename in the given folder to a CSV file.
+
+    :param folder_path: Path to the folder whose filenames are to be written.
+    :param csv_file_path: Path to the CSV file where the filenames will be stored.
+    """
+    # Check if the given path is indeed a folder
+    if not os.path.isdir(folder_path):
+        print("The provided path is not a folder.")
+        return
+
+    with open(csv_file_path, 'w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+
+        # Writing header
+        writer.writerow(['Filename'])
+
+        # Writing file names
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+
+            # Check if it's a file and not a sub-folder
+            if os.path.isfile(file_path):
+                writer.writerow([filename])
+
+    print(f"File names from '{folder_path}' have been written to '{csv_file_path}'")
+
+# Example usage
+
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+
+# Assuming an arbitrary initial learning rate for illustration
+initial_lr = 0.1
+T_max = 75
+eta_min = 0
+epochs = 50
+
+
+# Dummy model and optimizer
+model = torch.nn.Linear(10, 2)  # Example model
+optimizer = torch.optim.SGD(model.parameters(), lr=initial_lr, momentum=0.9)
+
+# Scheduler setup
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=75, eta_min=0)
+
+# Recording learning rates
+lrs = []
+for epoch in range(epochs):
+    if epoch >= 10:
+        scheduler.step()
+    lrs.append(optimizer.param_groups[0]['lr'])
+
+# Plotting
+plt.figure(figsize=(10, 6))
+plt.rcParams.update({'font.size': 14})
+plt.plot(range(epochs), lrs, label='Learning Rate')
+plt.xlabel('Epoch')
+plt.ylabel('Learning Rate')
+plt.title('Learning Rate Schedule with CosineAnnealingLR')
+plt.legend()
+plt.grid(True)
+plt.savefig("CosineAnnealing")
+plt.show()
+
+
 #%%
