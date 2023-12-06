@@ -82,6 +82,48 @@ def plot_loss_acc_curves(model_folder: str):
     plt.savefig(Path(model_folder) / "train_loss_acc.png")
     plt.show()
 
+    plot_spec_sens_curves(model_folder = model_folder)
+
+def plot_spec_sens_curves(model_folder: str):
+    # Assuming get_model is a function you've defined elsewhere that loads your model and results
+    trained_model, model_results, dict_hyperparameters, summary = get_model(Path(model_folder))
+
+    sens = model_results["train_sens"]
+    val_sens = model_results["val_sens"]
+    spez = model_results["train_spez"]
+    val_spez = model_results["val_spez"]
+    epochs = range(len(sens))
+
+    # Set the global font size
+    plt.rcParams.update({'font.size': 14})
+
+    plt.figure(figsize=(15, 7))
+
+    # Plot loss
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, sens, label="Training Sensitivity")
+    plt.plot(epochs, val_sens, label="Validation Sensitivity")
+    plt.title("Sensitivity")
+    plt.xlabel("Epochs")
+    plt.ylabel("Sensitivity")
+    axl = plt.gca()
+    axl.set_ylim([0, 1.4])
+    plt.legend()
+
+    # Plot accuracy
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, spez, label="Training Specificity")
+    plt.plot(epochs, val_spez, label="Validation Specificity")
+    plt.title("Specificity")
+    plt.xlabel("Epochs")
+    plt.ylabel("Specificity")
+    axa = plt.gca()
+    axa.set_ylim([0.3, 1])
+    plt.legend()
+
+    plt.savefig(Path(model_folder) / "Train_Val_Sens_Spez.png")
+    plt.show()
+
 def store_model(target_dir_new_model: str, tf_model: bool, model_name: str, hyperparameter_dict: dict,
                 trained_epochs: int, classifier_model: torch.nn.Module, results: dict, batch_size: int,
                 total_train_time: float, timestampStr: str):

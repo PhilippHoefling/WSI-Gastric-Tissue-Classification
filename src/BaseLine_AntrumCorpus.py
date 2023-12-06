@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 import time
 # import skimage
 from typing import Dict, List, Tuple
-#from sklearn.model_selection import train
+# from sklearn.model_selection import train
 import torchvision
 from torch import nn
 from auxiliaries import store_model
@@ -53,43 +53,27 @@ def create_dataloaders(train_dir: str,
 
     return train_dataloader, val_dataloader, class_names
 
-#manualtransformation placeholder for augmentation
-def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
+
+# manualtransformation placeholder for augmentation
+def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int, augmentations: transforms.Compose):
     '''
     Load the data into data loaders with the choosen transformation function
     return: dataloaders for training and validation, list of the class names in the dataset
     '''
 
-
-    train_transforms = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(degrees=180),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
-
-    augmentation_pipeline_2 = transforms.Compose([
+    # Base transforms
+    base_transforms = [
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
+    ]
 
-    augmentation_pipeline_3 = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(degrees=180),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5.)),
-        transforms.ToTensor(),
-    ])
+    # Insert augmentations before base transformations
+    train_transforms = transforms.Compose(augmentations + base_transforms)
 
-
+    print(train_transforms)
     val_transforms = transforms.Compose([
-        transforms.Resize((224,224)),
+        transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
@@ -105,15 +89,7 @@ def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
     return train_dataloader, val_dataloader, class_names
 
 
-
-def loading(folder_name: str):
-    direc = os.path.join(
-        folder_name)
-    return os.listdir(direc), len(os.listdir(direc))
-
-
-
-def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int):
+def load_pretrained_model(device, tf_model: str, class_names: list, dropout: int):
     '''
     Load the pretrainind ResNet50 pytorch model with or without weights
     return: model and the pretrained weights
@@ -122,24 +98,21 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     torch.manual_seed(cfg_hp["seed"])
     torch.cuda.manual_seed(cfg_hp["seed"])
     # Load weights from
-    weights = torchvision.models.ResNet18_Weights
 
     # Load pretrained model with or without weights
-    if tf_model =='imagenet':
-        # Load pretrained ResNet50 Model
-        model = torchvision.models.resnet18(weights)
-
-    #elif tf_model =='PathDat':
+    if tf_model == 'imagenet':
+        # Load pretrained ResNet18 Model
+        model = torchvision.models.resnet18(pretrained=True, progress=False)
+    # elif tf_model =='PathDat':
     #    model = resnet50(pretrained=True, progress=False, key="BT")
     #    return model
     else:
-        model = torchvision.models.resnet18()
+        model = torchvision.models.resnet18(pretrained=False, progress=False)
 
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between
     model.fc = torch.nn.Sequential(
         torch.nn.Linear(in_features=num_ftrs, out_features=1))
-
 
     # Unfreeze all the layers
     for param in model.parameters():
@@ -151,6 +124,7 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     model.to(device)
 
     return model
+
 
 def train_new_model(dataset_path: str, tf_model: str):
     '''
@@ -171,53 +145,70 @@ def train_new_model(dataset_path: str, tf_model: str):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info("Training on:")
     logger.info(device)
-    for b in range(len(cfg_hp["batch_size"])):
-        for l in range(len(cfg_hp["lr"])):
-            print("Batchsize" + str(b))
-            print("lr"+ str(l))
-            # Load data
-            train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
-                                                                      val_dir=val_dir,
-                                                                      num_workers=cfg_hp["num_workers"],
-                                                                      batch_size=cfg_hp["batch_size"][b],
-                                                                      )
+    # Augmentation to test
 
-            # Load pretrained model, weights and the transforms
-            model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout=cfg_hp["dropout"])
+    augmentations_combination_7 = [
+        transforms.RandomRotation(degrees=180),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+    ]
 
-            # Define loss and optimizer
-            loss_fn = nn.BCEWithLogitsLoss()
-            optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l])
+    augmentations = [augmentations_combination_7]
 
-            #learning rate scheduler
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=75, eta_min=0)
+    for a in augmentations:
+        for b in cfg_hp["batch_size"]:
+            for l in cfg_hp["lr"]:
+                print("Batchsize" + str(b))
+                print("lr" + str(l))
+                # Load data
+                train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
+                                                                          val_dir=val_dir,
+                                                                          num_workers=cfg_hp["num_workers"],
+                                                                          batch_size=b,
+                                                                          augmentations=a
+                                                                          )
 
+                # Load pretrained model, weights and the transforms
+                model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names,
+                                              dropout=cfg_hp["dropout"])
 
-            # Set the random seeds
-            torch.manual_seed(cfg_hp["seed"])
-            torch.cuda.manual_seed(cfg_hp["seed"])
+                # Define loss and optimizer
+                loss_fn = nn.BCEWithLogitsLoss()
+                # optimizer = torch.optim.Adam(model.parameters(), lr=l)
 
-            hyperparameter_dict = {"epochs": cfg_hp["epochs"], "seed": cfg_hp["seed"],
-                                   "learning_rate": cfg_hp["lr"][l], "dropout": cfg_hp["dropout"],
-                                   "batch_size": cfg_hp["batch_size"][b], "num_workers": cfg_hp["num_workers"]}
+                # SGD Optimizer
+                optimizer = torch.optim.SGD(model.parameters(), lr=l, momentum=0.9)
 
+                # Define the learning rate scheduler
+                scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.5)
+                # learning rate scheduler
+                # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=75, eta_min=0)
 
-            # Setup training and save the results
-            results, model_folder = train(target_dir_new_model=target_dir_new_model,
-                                          tf_model=tf_model,
-                                          model_name=model_name,
-                                          model=model,
-                                          train_dataloader=train_dataloader,
-                                          val_dataloader=val_dataloader,
-                                          optimizer=optimizer,
-                                          scheduler=scheduler,
-                                          loss_fn=loss_fn,
-                                          batch_size=cfg_hp["batch_size"][b],
-                                          epochs=cfg_hp["epochs"],
-                                          hyperparameter_dict=hyperparameter_dict,
-                                          device=device
-                                          )
+                # Set the random seeds
+                torch.manual_seed(cfg_hp["seed"])
+                torch.cuda.manual_seed(cfg_hp["seed"])
+
+                hyperparameter_dict = {"epochs": cfg_hp["epochs"], "seed": cfg_hp["seed"],
+                                       "learning_rate": l, "dropout": cfg_hp["dropout"],
+                                       "batch_size": b, "num_workers": cfg_hp["num_workers"]}
+
+                # Setup training and save the results
+                results, model_folder = train(target_dir_new_model=target_dir_new_model,
+                                              tf_model=tf_model,
+                                              model_name=model_name,
+                                              model=model,
+                                              train_dataloader=train_dataloader,
+                                              val_dataloader=val_dataloader,
+                                              optimizer=optimizer,
+                                              scheduler=scheduler,
+                                              loss_fn=loss_fn,
+                                              batch_size=b,
+                                              epochs=cfg_hp["epochs"],
+                                              hyperparameter_dict=hyperparameter_dict,
+                                              device=device
+                                              )
     return model_folder
+
 
 def train(target_dir_new_model: str,
           tf_model: bool,
@@ -259,6 +250,7 @@ def train(target_dir_new_model: str,
     model_folder = ''
 
     # Loop through training and valing steps for a number of epochs
+
     for epoch in tqdm(range(epochs)):
         trained_epochs = epoch + 1
         train_loss, train_acc = train_step(model=model,
@@ -267,7 +259,7 @@ def train(target_dir_new_model: str,
                                            optimizer=optimizer,
                                            scheduler=scheduler,
                                            device=device,
-                                           trained_epochs = trained_epochs
+                                           trained_epochs=trained_epochs
                                            )
         val_loss, val_acc = val_step(model=model,
                                      dataloader=val_dataloader,
@@ -310,6 +302,7 @@ def train(target_dir_new_model: str,
             continue
 
     return results, model_folder
+
 
 def train_step(model: torch.nn.Module,
                dataloader: torch.utils.data.DataLoader,
@@ -358,14 +351,18 @@ def train_step(model: torch.nn.Module,
 
         # Predict class labels and count the number of correct predictions
         predicted = torch.sigmoid(outputs).round()
+
+        # Update Accuracy
         correct_predictions += (predicted == labels).sum().item()
         total_samples += labels.size(0)
 
-
-    scheduler.step()
+    # Adjust the learning rate based on the scheduler
+    # if trained_epochs > 10:
+    # scheduler.step()
 
     average_loss = total_loss / len(dataloader)
     accuracy = correct_predictions / total_samples
+
     return average_loss, accuracy
 
 
@@ -404,7 +401,8 @@ def val_step(model: torch.nn.Module,
             correct_predictions += (predicted == labels.unsqueeze(1)).sum().item()
             total_samples += labels.size(0)
 
-    average_loss = total_loss / len(dataloader)
-    accuracy = correct_predictions / total_samples
+        # Calculate average loss, accuracy, sensitivity, and specificity
+        average_loss = total_loss / len(dataloader)
+        accuracy = correct_predictions / total_samples
 
     return average_loss, accuracy

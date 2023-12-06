@@ -7,9 +7,10 @@ from PIL import Image
 
 
 #%%
-import torch
-
-torch.cuda.is_available()
+#         transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5.)),
+#         transforms.RandomHorizontalFlip(),
+#         transforms.RandomVerticalFlip(),
+#         transforms.RandomRotation(degrees=180),
 #%%
 
 from PIL import Image
@@ -168,7 +169,7 @@ def plot_heatmap(csv_path):
 
     # Add a label to the color bar
     colorbar = heatmap.collections[0].colorbar
-    colorbar.set_label('Validation Accuracy')
+    colorbar.set_label('Validation Acc')
 
     # Add labels and a title for clarity
     plt.xlabel('Learning Rate')
@@ -176,12 +177,12 @@ def plot_heatmap(csv_path):
 
 
 
-    plt.savefig("heatmap_ResNet50_Tissue_vallacc", bbox_inches='tight', dpi=300)
+    plt.savefig("heatmap_ResNet18_Inflammed_vallacc", bbox_inches='tight', dpi=300)
     # Display the heatmap
     plt.show()
 
 # Replace 'path_to_csv.csv' with your actual CSV file path
-csv_file_path = 'D:/ResNet50TissueAugmentation.csv'
+csv_file_path = 'D:/ResNet18AugGridsearchInflammed.csv'
 plot_heatmap(csv_file_path)
 #%%
 import torch
@@ -381,4 +382,173 @@ plt.savefig("CosineAnnealing")
 plt.show()
 
 
+#%%
+import torch
+from torchvision import transforms
+from PIL import Image
+import matplotlib.pyplot as plt
+import numpy as np
+torch.cuda.empty_cache()
+#%%
+from src.config import config_hyperparameter as cfg
+for l in  cfg["lr"]:
+    print(l)
+#%%
+import torch
+from torchvision import models, transforms
+from PIL import Image
+import torchvision
+from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, auc
+from pathlib import Path
+
+resnet18 = models.resnet18(pretrained=True)
+resnet18.eval()  # Set the model to evaluation mode
+
+num_ftrs = resnet18.fc.in_features
+# Recreate classifier layer with an additional layer in between
+resnet18.fc = torch.nn.Sequential(
+    torch.nn.Linear(in_features=num_ftrs, out_features=1))
+
+preprocess = transforms.Compose([
+    transforms.Resize(224),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+device = "cuda"
+resnet18.to(device)
+resnet18.eval()
+
+
+
+image_path= "C:/Users/phili/OneDrive - Otto-Friedrich-Universität Bamberg/DataSpell/xAIMasterThesis/data/InflamedTilesReworked/train"
+
+image_path_list = list(Path(image_path).glob("*/*.*"))
+class_names = ['0_noninflamed','1_inflamed']
+accuracy = []
+predictions = []
+y_test = []
+false_pred_path = []
+prob_distibution = []
+probabilities = []
+
+print("test")
+
+for image_path in image_path_list:
+    # Load in image and convert the tensor values to float32
+    target_image = torchvision.io.read_image(str(image_path)).type(torch.float32)
+
+    # Divide the image pixel values by 255 to get them between [0, 1]
+    target_image = target_image / 255
+
+    # Transform if necessary
+    target_image = preprocess(target_image)
+
+    # Turn on model evaluation mode and inference mode
+
+    with torch.inference_mode():
+        # Add an extra dimension to the image
+        target_image = target_image.unsqueeze(dim=0)
+
+        # Make a prediction on image with an extra dimension
+        target_image_pred = resnet18(target_image.cuda())
+        target_image_pred_probs = torch.sigmoid(target_image_pred).round()
+
+        probabilities.append(torch.sigmoid(target_image_pred).item())
+
+    # Convert prediction probabilities -> prediction labels
+
+    target_image_pred_label = target_image_pred_probs.round()
+    pred_class = class_names[int(target_image_pred_label)]
+    true_class = image_path.parts[9]
+
+    prob_distibution.append([true_class , torch.sigmoid(target_image_pred)])
+
+    predictions.append(target_image_pred_label.item())
+    y_test.append(class_names.index(true_class))
+    if pred_class == true_class:
+        accuracy.append(1)
+    else:
+        accuracy.append(0)
+        false_pred_path.append(str(image_path))
+
+
+
+print("Accuracy on test set: " + str(sum(accuracy) / len(accuracy) * 100) + " %")
+print("Precision on test set " + str(precision_score(y_test, predictions, average='binary')))
+print("Recall on test set " + str(recall_score(y_test, predictions, average='binary')))
+print("F1 Score on test set " + str(f1_score(y_test, predictions, average='binary')))
+print("fertig")
+#%%
+import graphviz
+
+dot = graphviz.Digraph(comment='Dataset Structure')
+
+dot.node('A', '205 Slides')
+dot.node('B', 'Gastric Region')
+dot.node('C', 'Inflammation')
+dot.node('D', '108 Antrum')
+dot.node('E', '156 Corpus')
+dot.node('F', '35 Intermediate')
+dot.node('G', '9 Others')
+dot.node('H', '110 Non-Inflamed')
+dot.node('I', '95 Inflamed')
+dot.node('J', '55 Type-B')
+dot.node('K', '40 Type-C')
+
+
+dot.edges(['AB', 'AC'])
+dot.edges(['BD', 'BE', 'BF', 'BG'])
+dot.edges(['CH', 'CI'])
+dot.edges(['IJ', 'IK'])
+
+dot.render('dataset_structure.gv', view=True)  # This will render the graph to a .gv file and open it
+
+#%%
+import os
+
+# Set the directory path where your PNG files are stored
+directory_path = 'C:/Users/phili/OneDrive - Otto-Friedrich-Universität Bamberg/DataSpell/xAIMasterThesis/data/InflamedTilesReworked/train/1_inflamed'
+
+# Initialize counters
+bhe_count = 0
+che_count = 0
+
+# Iterate through each file in the directory
+for filename in os.listdir(directory_path):
+    if filename.endswith(".png"):  # Check if the file is a PNG
+        if "BHE" in filename:
+            bhe_count += 1
+        elif "CHE" in filename:
+            che_count += 1
+
+# Print the counts
+print(f"Number of PNG files containing 'BHE': {bhe_count}")
+print(f"Number of PNG files containing 'CHE': {che_count}")
+#%%
+import matplotlib.pyplot as plt
+
+gastritis_type_b = [8070, 1203, 1007]  # Gastritis type B counts
+gastritis_type_c = [7015, 571, 1831]   # Gastritis type C counts
+categories = ['Train', 'Validation', 'Test']
+
+plt.rcParams.update({'font.size': 11})
+
+# Setting the positions and width for the bars
+positions = range(len(categories))
+bar_width = 0.35
+
+# Plotting Gastritis Type B
+plt.bar([p - bar_width/2 for p in positions], gastritis_type_b, bar_width, label='Gastritis Type B')
+
+# Plotting Gastritis Type C
+plt.bar([p + bar_width/2 for p in positions], gastritis_type_c, bar_width, label='Gastritis Type C')
+
+plt.xlabel('Dataset')
+plt.ylabel('Number of Tiles')
+plt.title('Comparison of Gastritis Types B and C across Datasets')
+plt.xticks(positions, categories)
+plt.legend()
+plt.savefig("Distribution of gastritis tiles", bbox_inches='tight', dpi=600)
+
+plt.show()
 #%%

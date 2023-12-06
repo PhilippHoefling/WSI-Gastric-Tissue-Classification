@@ -53,41 +53,24 @@ def create_dataloaders(train_dir: str,
     return train_dataloader, val_dataloader, class_names
 
 #manualtransformation placeholder for augmentation
-def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int):
+def load_data(train_dir: str, val_dir: str, num_workers: int, batch_size: int, augmentations: transforms.Compose):
     '''
     Load the data into data loaders with the choosen transformation function
     return: dataloaders for training and validation, list of the class names in the dataset
     '''
 
 
-    train_transforms = transforms.Compose([
+    # Base transforms
+    base_transforms = [
         transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(degrees=180),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
+    ]
 
-    augmentation_pipeline_2 = transforms.Compose([
-        transforms.Resize((224, 224)),
+    # Insert augmentations before base transformations
+    train_transforms = transforms.Compose(augmentations + base_transforms)
 
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
-
-    augmentation_pipeline_3 = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(degrees=180),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5.)),
-        transforms.ToTensor(),
-    ])
-
-
+    print(train_transforms)
     val_transforms = transforms.Compose([
         transforms.Resize((224,224)),
         transforms.ToTensor(),
@@ -113,17 +96,17 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     torch.manual_seed(cfg_hp["seed"])
     torch.cuda.manual_seed(cfg_hp["seed"])
     # Load weights from
-    weights = torchvision.models.ResNet50_Weights
+
 
     # Load pretrained model with or without weights
     if tf_model =='imagenet':
-        # Load pretrained ResNet50 Model
-        model = torchvision.models.resnet50(weights)
+        # Load pretrained ResNet18 Model
+        model = torchvision.models.resnet18(pretrained=True, progress=False)
     #elif tf_model =='PathDat':
     #    model = resnet50(pretrained=True, progress=False, key="BT")
     #    return model
     else:
-        model = torchvision.models.resnet50()
+        model = torchvision.models.resnet18(pretrained=False, progress= False)
 
     num_ftrs = model.fc.in_features
     # Recreate classifier layer with an additional layer in between
@@ -134,6 +117,7 @@ def load_pretrained_model(device, tf_model: str, class_names:list, dropout: int)
     # Unfreeze all the layers
     for param in model.parameters():
         param.requires_grad = True
+
 
     # Speed up training
     if torch.cuda.device_count() > 1:
@@ -161,58 +145,74 @@ def train_new_inf_model(dataset_path: str, tf_model: str):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info("Training on:")
     logger.info(device)
-    for b in range(len(cfg_hp["batch_size"])):
-        for l in range(len(cfg_hp["lr"])):
-            print("Batchsize" + str(b))
-            print("lr"+ str(l))
-            # Load data
-            train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
-                                                                      val_dir=val_dir,
-                                                                      num_workers=cfg_hp["num_workers"],
-                                                                      batch_size=cfg_hp["batch_size"][b],
-                                                                      )
-
-            # Load pretrained model, weights and the transforms
-            model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout=cfg_hp["dropout"])
-
-            # Define loss and optimizer
-            loss_fn = nn.BCEWithLogitsLoss()
-            #optimizer = torch.optim.Adam(model.parameters(), lr=cfg_hp["lr"][l])
-
-            #learning rate scheduler
-            #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=75, eta_min=0)
+    #Augmentation to test
 
 
-            # Observe that all parameters are being optimized
-            optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-            # Define the learning rate scheduler
-            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
-
-            # Set the random seeds
-            torch.manual_seed(cfg_hp["seed"])
-            torch.cuda.manual_seed(cfg_hp["seed"])
-
-            hyperparameter_dict = {"epochs": cfg_hp["epochs"], "seed": cfg_hp["seed"],
-                                   "learning_rate": cfg_hp["lr"][l], "dropout": cfg_hp["dropout"],
-                                   "batch_size": cfg_hp["batch_size"][b], "num_workers": cfg_hp["num_workers"]}
+    augmentations_combination_6 = [
+        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5.)),
+        transforms.RandomRotation(degrees=180)
+    ]
 
 
-            # Setup training and save the results
-            results, model_folder = train(target_dir_new_model=target_dir_new_model,
-                                          tf_model=tf_model,
-                                          model_name=model_name,
-                                          model=model,
-                                          train_dataloader=train_dataloader,
-                                          val_dataloader=val_dataloader,
-                                          optimizer=optimizer,
-                                          scheduler=scheduler,
-                                          loss_fn=loss_fn,
-                                          batch_size=cfg_hp["batch_size"][b],
-                                          epochs=cfg_hp["epochs"],
-                                          hyperparameter_dict=hyperparameter_dict,
-                                          device=device
-                                          )
+
+    augmentations = [augmentations_combination_6]
+
+    for a in augmentations:
+        for b in cfg_hp["batch_size"]:
+            for l in cfg_hp["lr"]:
+                print(a)
+
+                print(l)
+                # Load data
+                train_dataloader, val_dataloader, class_names = load_data(train_dir=train_dir,
+                                                                          val_dir=val_dir,
+                                                                          num_workers=cfg_hp["num_workers"],
+                                                                          batch_size=b,
+                                                                          augmentations=a
+                                                                          )
+
+                # Load pretrained model, weights and the transforms
+                model = load_pretrained_model(device, tf_model=tf_model, class_names=class_names, dropout=cfg_hp["dropout"])
+
+                # Define loss and optimizer
+                loss_fn = nn.BCEWithLogitsLoss()
+                #optimizer = torch.optim.Adam(model.parameters(), l)
+
+                #learning rate scheduler
+                #scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=75, eta_min=0)
+                #scheduler = None
+
+                # SGD Optimizer
+                optimizer = torch.optim.SGD(model.parameters(), lr=l, momentum=0.9)
+
+                # Define the learning rate scheduler
+                scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.5)
+
+                # Set the random seeds
+                torch.manual_seed(cfg_hp["seed"])
+                torch.cuda.manual_seed(cfg_hp["seed"])
+
+                hyperparameter_dict = {"epochs": cfg_hp["epochs"], "seed": cfg_hp["seed"],
+                                       "learning_rate": l, "dropout": cfg_hp["dropout"],
+                                       "batch_size":b, "num_workers": cfg_hp["num_workers"]}
+
+
+                # Setup training and save the results
+                results, model_folder = train(target_dir_new_model=target_dir_new_model,
+                                              tf_model=tf_model,
+                                              model_name=model_name,
+                                              model=model,
+                                              train_dataloader=train_dataloader,
+                                              val_dataloader=val_dataloader,
+                                              optimizer=optimizer,
+                                              scheduler=scheduler,
+                                              loss_fn=loss_fn,
+                                              batch_size=b,
+                                              epochs=cfg_hp["epochs"],
+                                              hyperparameter_dict=hyperparameter_dict,
+                                              device=device
+                                              )
     return model_folder
 
 def train(target_dir_new_model: str,
@@ -238,8 +238,12 @@ def train(target_dir_new_model: str,
     # Create empty results dictionary
     results = {"train_loss": [],
                "train_acc": [],
+               "train_sens": [],
+               "train_spez": [],
                "val_loss": [],
-               "val_acc": []
+               "val_acc": [],
+               "val_sens": [],
+               "val_spez": [],
                }
 
     # Start the timer
@@ -257,7 +261,7 @@ def train(target_dir_new_model: str,
     # Loop through training and valing steps for a number of epochs
     for epoch in tqdm(range(epochs)):
         trained_epochs = epoch + 1
-        train_loss, train_acc = train_step(model=model,
+        train_loss, train_acc, train_sens, train_spez = train_step(model=model,
                                            dataloader=train_dataloader,
                                            loss_fn=loss_fn,
                                            optimizer=optimizer,
@@ -265,7 +269,7 @@ def train(target_dir_new_model: str,
                                            device=device,
                                            trained_epochs = trained_epochs
                                            )
-        val_loss, val_acc = val_step(model=model,
+        val_loss, val_acc, val_sens, val_spez = val_step(model=model,
                                      dataloader=val_dataloader,
                                      loss_fn=loss_fn,
                                      device=device
@@ -276,15 +280,23 @@ def train(target_dir_new_model: str,
             f"\nEpoch: {epoch + 1} | "
             f"train_loss: {train_loss:.4f} | "
             f"train_acc: {train_acc:.4f} | "
+            f"train_sens: {train_sens:.4f} | "
+            f"train_spez: {train_spez:.4f} | "
             f"val_loss: {val_loss:.4f} | "
             f"val_acc: {val_acc:.4f}"
+            f"val_sens: {val_sens:.4f} | "
+            f"val_spez: {val_spez:.4f} | "
         )
 
         # Update results dictionary
         results["train_loss"].append(train_loss)
         results["train_acc"].append(train_acc)
+        results["train_sens"].append(train_sens)
+        results["train_spez"].append(train_spez)
         results["val_loss"].append(val_loss)
         results["val_acc"].append(val_acc)
+        results["val_sens"].append(val_sens)
+        results["val_spez"].append(val_spez)
 
         min_val_loss = min(results["val_loss"])
         # Early Stopping
@@ -314,7 +326,7 @@ def train_step(model: torch.nn.Module,
                scheduler: torch.optim.lr_scheduler,
                device: torch.device,
                trained_epochs: int
-               ) -> Tuple[float, float]:
+               ) -> Tuple[float, float, float, float]:
     '''
     Train step for the selected model (Baseline or Transfer Learning model) and calculating the train loss
     and accuracy
@@ -327,6 +339,12 @@ def train_step(model: torch.nn.Module,
     total_loss = 0.0
     correct_predictions = 0
     total_samples = 0
+
+    # Initialize variables for sensitivity and specificity calculations
+    TP = 0  # True Positives
+    TN = 0  # True Negatives
+    FP = 0  # False Positives
+    FN = 0  # False Negatives
 
     for data, labels in dataloader:
         # Move data and labels to the specified device (e.g., GPU)
@@ -354,23 +372,38 @@ def train_step(model: torch.nn.Module,
 
         # Predict class labels and count the number of correct predictions
         predicted = torch.sigmoid(outputs).round()
+
+        # Update TP, TN, FP, FN
+        TP += ((predicted == 1) & (labels == 1)).sum().item()
+        TN += ((predicted == 0) & (labels == 0)).sum().item()
+        FP += ((predicted == 1) & (labels == 0)).sum().item()
+        FN += ((predicted == 0) & (labels == 1)).sum().item()
+
+
+        #Update Accuracy
         correct_predictions += (predicted == labels).sum().item()
         total_samples += labels.size(0)
 
     # Adjust the learning rate based on the scheduler
-    if trained_epochs > 10:
-        scheduler.step()
+    #if trained_epochs > 10:
+        #scheduler.step()
 
+
+    # Calculate average loss, accuracy, sensitivity, and specificity
     average_loss = total_loss / len(dataloader)
     accuracy = correct_predictions / total_samples
-    return average_loss, accuracy
+    sensitivity = TP / (TP + FN) if (TP + FN) > 0 else 0
+    specificity = TN / (TN + FP) if (TN + FP) > 0 else 0
+
+
+    return average_loss, accuracy, sensitivity, specificity
 
 
 def val_step(model: torch.nn.Module,
              dataloader: torch.utils.data.DataLoader,
              loss_fn: torch.nn.Module,
              device: torch.device
-             ) -> Tuple[float, float]:
+             ) -> Tuple[float, float, float, float]:
     '''
     Validation step for the selected model (Baseline or Transfer Learning model) and calculating the validation loss
     and validation accuracy
@@ -382,6 +415,13 @@ def val_step(model: torch.nn.Module,
     total_loss = 0.0
     correct_predictions = 0
     total_samples = 0
+
+
+    # Initialize variables for sensitivity and specificity calculations
+    TP = 0  # True Positives
+    TN = 0  # True Negatives
+    FP = 0  # False Positives
+    FN = 0  # False Negatives
 
     # Disable gradient computation during validation
     with torch.no_grad():
@@ -401,7 +441,16 @@ def val_step(model: torch.nn.Module,
             correct_predictions += (predicted == labels.unsqueeze(1)).sum().item()
             total_samples += labels.size(0)
 
-    average_loss = total_loss / len(dataloader)
-    accuracy = correct_predictions / total_samples
+            # Update TP, TN, FP, FN
+            TP += ((predicted == 1) & (labels == 1)).sum().item()
+            TN += ((predicted == 0) & (labels == 0)).sum().item()
+            FP += ((predicted == 1) & (labels == 0)).sum().item()
+            FN += ((predicted == 0) & (labels == 1)).sum().item()
 
-    return average_loss, accuracy
+        # Calculate average loss, accuracy, sensitivity, and specificity
+        average_loss = total_loss / len(dataloader)
+        accuracy = correct_predictions / total_samples
+        sensitivity = TP / (TP + FN) if (TP + FN) > 0 else 0
+        specificity = TN / (TN + FP) if (TN + FP) > 0 else 0
+
+    return average_loss, accuracy, sensitivity, specificity

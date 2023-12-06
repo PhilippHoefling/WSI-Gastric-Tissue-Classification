@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, auc
 import torch
 import torchvision
-from torchvision import transforms
+from torchvision import transforms, models
 from pathlib import Path
 from PIL import Image
 from config import config_hyperparameter as cfg_hp
@@ -93,21 +93,17 @@ def tile_inference_binary(model_folder: str, test_folder: str, safe_wrong_preds:
             target_image_pred_probs = torch.sigmoid(target_image_pred).round()
 
             probabilities.append(torch.sigmoid(target_image_pred).item())
-        # Convert logits -> prediction probabilities
-        # (using torch.softmax() for multi-class classification)
-        #target_image_pred_probs = torch.softmax(target_image_pred, dim=1)
-
 
         # Convert prediction probabilities -> prediction labels
-
         target_image_pred_label = target_image_pred_probs.round()
         pred_class = class_names[int(target_image_pred_label)]
-        true_class = image_path.parts[3]
+        true_class = image_path.parts[-2]
 
         prob_distibution.append([true_class , torch.sigmoid(target_image_pred)])
 
-        predictions.append(target_image_pred_label.item())
+        predictions.append(class_names.index(pred_class))
         y_test.append(class_names.index(true_class))
+
         if pred_class == true_class:
             accuracy.append(1)
         else:
@@ -133,7 +129,7 @@ def tile_inference_binary(model_folder: str, test_folder: str, safe_wrong_preds:
 
     print("Accuracy on test set: " + str(sum(accuracy) / len(accuracy) * 100) + " %")
     print("Precision on test set " + str(precision_score(y_test, predictions, average='binary')))
-    print("Recall on test set " + str(recall_score(y_test, predictions, average='binary')))
+    print("Sensitivity on test set " + str(recall_score(y_test, predictions, average='binary')))
     print("F1 Score on test set " + str(f1_score(y_test, predictions, average='binary')))
     # print("Log-Loss on test set " + str(log_loss(y_test, predictions)))
 
@@ -219,6 +215,7 @@ def tile_inference_regression(model_folder: str, test_folder: str, safe_wrong_pr
     print(predictions)
     ConfusionMatrixDisplay.from_predictions(y_test, predictions, display_labels=class_names, cmap='Blues',
                                             colorbar=False)
+    plt.rcParams.update({'font.size': 14})
     plt.savefig(model_folder + '/test_confusion_matrix.png')
     plt.show()
 
@@ -259,7 +256,7 @@ def plot_prob_distribution(model_folder, prob_distibution):
     unique_classes = list(set([entry[0] for entry in prob_distibution]))
 
     plt.figure(figsize=(12, 8))
-
+    plt.rcParams.update({'font.size': 14})
     for true_class in unique_classes:
         target_probs = [entry[1] for entry in prob_distibution if entry[0] == true_class]
         # Since target_image_pred_probs is a tensor, we need to convert it to a numpy array and flatten it.
@@ -273,4 +270,6 @@ def plot_prob_distribution(model_folder, prob_distibution):
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.savefig(model_folder + '/Test_Prob_Distr.png')
     plt.show()
+
+
 #%%
