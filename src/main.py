@@ -1,79 +1,69 @@
 
 from loguru import logger
-from BaseLine_AntrumCorpus import train_new_model
+
 from process import load_sort_data
 from Tile_inference import tile_inference_regression, tile_inference_binary, pred_on_single_image
 from process import plot_file_distribution , get_WSI_aggregation_data
-from WSI_Inference import TestOnSingleSlide, TestOnSlides
-from VisionTransformer import trainVIT
-from AntrumCorpusIntermediate import train_new_3model, print_3model_metrices
-from BaseLine_Inflammed import train_new_inf_model
+from WSI_Inference import WSI_Test_Pipeline, TestOnSlides, TestOnWSISlideFolder, TestOnWSISlideFolderTissue
+from Binary_ResNet18 import train_new_binary_model
 from auxiliaries import plot_loss_acc_curves
-from EfficientNetB5 import train_new_EFFICIENTNET
-from evaluaton_human_performance import evaluate_Experiment_Tiles
+
+from evaluaton_human_performance import evaluate_Experiment_Tiles, AI_Tile_prediction_for_Experiment
 import time
 
 if __name__ == "__main__":
     # Define dataset paths
-    dataset_Tissue_path = 'data/TissueTiles'
-    dataset_Tom_Tissue = 'data/TissueTilesReworked'
+    dataset_Tissue_path = 'data/TissueTiles512'
+    dataset_final_Tissue = 'data/TissueTilesReworked'
     dataset_Inflammed_path = 'data/InflamedTiles'
     dataset_Inf_tom_path = 'data/InflamedTilesReworked'
 
     model_folder_inf = "models/TransferLearning_model_05122023_0418"
-    model_folder_tissue = "models/TransferLearning_model_27112023_0916"
+    model_folder_tissue = "models/TransferLearning_model_09122023_1539"
 
     tf_model ="imagenet"
     single_image_path = 'data/InflamedTiles/test/inflamed/7CHE d-5_x-58735_y-137940_w-2560_h-2560_inflamed.png'
-    test_slidepath = 'E:/Scans/Non-Inflamed/72HE.mrxs'
+    test_slidepath = 'E:/Scans/Non-Inflamed/56HE.mrxs'
 
-    # Set parameter for testing
-    #num_images = 6
 
-    # Set if you want to train a new model or which evualation you want to make on an existing model
-    train_model = True
-    train_vit = False
-    train_inf_model = False
-    train_effNet= False
-    train_2_class_model = False
 
-    test_Tissue_Model = False
-    test_Inf_Model = False
-    testonWSI =  False
-    testonAllWSIS = False
-    test_3model = False
-    prediction_on_image = False
-
+    #Preprocessing Data
     preprocess = False
     plot_data_distribution = False
-
-    printLossCurves = False
     get_WSI_train_Data = False
 
+    # train a new model
+    train_gastric_model = False
+    train_inf_model = False
+
+    #Test existing models
+    test_Tissue_Model = False
+    test_Inf_Model = True
+    testonWSI =  False
+    testonAllWSIS = False
+    testonWSIFolder = False
+    prediction_on_image = False
+    printLossCurves = False
 
     #Evaluation of Experiment results
     evaluate_experiment_tile_level = False
-
+    evaluate_model_on_experiment_tile_level = False
 
 
     if preprocess:
         logger.info("Start preprocessing data...")
-        load_sort_data("D:/TomGastric/tiles","D:/GastricPlot", use_split=True)
+        load_sort_data("D:/TomGastric/tiles", dataset_final_Tissue, use_split=True)
         logger.info("Congratulations, the preprocessing was successful!")
 
-    if train_model:
-        logger.info("Start training a new Baseline model...")
-        model_folder = train_new_model(dataset_path=dataset_Tom_Tissue,tf_model=tf_model)
-        logger.info("Congratulations, training the baseline models was successful!" + str(model_folder))
 
 
     if test_Tissue_Model:
         logger.info("Start testing the model..")
-        tile_inference_binary(model_folder=model_folder_tissue, test_folder=dataset_Tom_Tissue + "test", safe_wrong_preds=False)
+        tile_inference_binary(model_folder=model_folder_tissue, test_folder=dataset_final_Tissue + "/test", safe_wrong_preds=False)
 
     if test_Inf_Model:
         logger.info("Start testing the model..")
-        tile_inference_binary(model_folder=model_folder_inf, test_folder=dataset_Inf_tom_path + '/test', safe_wrong_preds=True)    #%%
+        tile_inference_binary(model_folder=model_folder_inf, test_folder=dataset_Inf_tom_path + "/test" , safe_wrong_preds=True)    #%%
 
     if plot_data_distribution:
         logger.info("Start analyzing dataset..")
@@ -85,7 +75,7 @@ if __name__ == "__main__":
 
     if testonWSI:
         logger.info("Start prediction on WSI...")
-        TestOnSingleSlide(model_folder=model_folder_inf, slidepath=test_slidepath)   #%%
+        WSI_Test_Pipeline(model_folder=model_folder_inf, slidepath=test_slidepath)   #%%
 
     if testonAllWSIS:
         # Start the timer
@@ -98,35 +88,34 @@ if __name__ == "__main__":
 
     if printLossCurves:
         logger.info("Start printing loss/accuracy curves...")
-        plot_loss_acc_curves(model_folder=model_folder_inf)  #%%
+        plot_loss_acc_curves(model_folder=model_folder_tissue)  #%%
 
-    if train_vit:
-        logger.info("Start training Visual Transformer...")
-        model_folder = trainVIT(dataset_path=dataset_Tissue_path)
-        logger.info("Congratulations, training your vision transformer was successful!" + str(model_folder))
 
-    if train_2_class_model:
-        model_folder = train_new_3model(dataset_path=dataset_Tom_Tissue,tf_model=tf_model)
+    if train_gastric_model:
+        logger.info("Start training a new binary Gastric Model...")
+        model_folder = train_new_binary_model(dataset_path=dataset_final_Tissue, tf_model=tf_model)
         logger.info("Congratulations, training the baseline models was successful!" + str(model_folder))
 
     if train_inf_model:
-        model_folder = train_new_inf_model(dataset_path=dataset_Inf_tom_path,tf_model=tf_model)
+        logger.info("Start training a new binary Inflammed Model...")
+        model_folder = train_new_binary_model(dataset_path=dataset_Inf_tom_path,tf_model=tf_model)
         logger.info("Congratulations, training the baseline models was successful!" + str(model_folder))
-
-    if train_effNet:
-        model_folder = train_new_EFFICIENTNET(dataset_path=dataset_Tissue_path, tf_model=tf_model)
-        logger.info("Congratulations, training the baseline models was successful!" + str(model_folder))
-
-    if test_3model:
-        logger.info("Start testing the model..")
-        print_3model_metrices(model_folder='models/TransferLearning_model_17112023_1755', test_folder=dataset_Inf_tom_path + 'test')   #%%
 
     if evaluate_experiment_tile_level:
         logger.info("Start evaluating the results of the experiment to evaluate human performance")
-        evaluate_Experiment_Tiles(csvpathInflammation= "results experiment/Experiment Human Performance Inflamed.csv",
-                                  csvpathTissue="results experiment/Experiment Human Performance Tissue.csv")
+        evaluate_Experiment_Tiles(csvpathInflammation= "results experiment/Experiment Human Performance Inflamed.csvAI.csv",
+                                  csvpathTissue="results experiment/Experiment Human Performance Tissue.csvAI.csv")
 
     if get_WSI_train_Data:
         logger.info("Start analyzing tile data set for WSI aggregation network")
         get_WSI_aggregation_data("D:/TomGastric/tiles")
 #%%
+    if evaluate_model_on_experiment_tile_level:
+        logger.info("Start evaluating the AI model onthe results of the experiment")
+        AI_Tile_prediction_for_Experiment(csv_file="results experiment/Experiment Human Performance Tissue.csv",
+                                          folder_tiles="C:/Users/phili/OneDrive - Otto-Friedrich-Universität Bamberg/Termin Nürnberg/Tiles_Experiment_Path",
+                                          model_folder=model_folder_tissue)
+    if testonWSIFolder:
+        logger.info("Start prediction on WSI...")
+        #TestOnWSISlideFolder(model_folder_inf=model_folder_inf, model_folder_tissue=model_folder_tissue, testfolder='xd' )
+        TestOnWSISlideFolderTissue(model_folder_inf=model_folder_inf, model_folder_tissue=model_folder_tissue )

@@ -10,7 +10,7 @@ from torchinfo import summary
 import pickle
 # import skimage
 #from sklearn.model_selection import train
-
+import seaborn as sns
 
 from pathlib import Path
 
@@ -82,7 +82,7 @@ def plot_loss_acc_curves(model_folder: str):
     plt.savefig(Path(model_folder) / "train_loss_acc.png")
     plt.show()
 
-    plot_spec_sens_curves(model_folder = model_folder)
+    #plot_spec_sens_curves(model_folder = model_folder)
 
 def plot_spec_sens_curves(model_folder: str):
     # Assuming get_model is a function you've defined elsewhere that loads your model and results
@@ -241,6 +241,8 @@ def image_entropy(img):
     return entropy[2]
 
 def get_model(model_folder: str):
+    """load a model, its hyperparameters and training results"""
+
     # get model from model folder
     model_folder = Path(model_folder)
 
@@ -268,3 +270,45 @@ def get_model(model_folder: str):
     logger.info(dict)
 
     return classifier_model, results, dict, summary
+
+def plot_heatmap(csv_path):
+    """Function was used to visualize the results of gridsearches"""
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv(csv_path, sep=';', decimal='.')
+
+
+    # Pivot the DataFrame to create a matrix with dropout rates as rows,
+    # learning rates as columns, and validation loss as values
+    heatmap_data = df.pivot('batch_size', 'learning_rate', 'val_acc')
+
+    # Create the heatmap using seaborn
+    heatmap = sns.heatmap(heatmap_data, annot=True, fmt=".3f", cmap='viridis')
+
+    # Add a label to the color bar
+    colorbar = heatmap.collections[0].colorbar
+    colorbar.set_label('Validation Acc')
+
+    # Add labels and a title for clarity
+    plt.xlabel('Learning Rate')
+    plt.ylabel('Batch Size')
+
+
+
+    plt.savefig("heatmap_ResNet18_Tissue_valacc", bbox_inches='tight', dpi=300)
+    # Display the heatmap
+    plt.show()
+
+def delete_small_json_files(folder_path):
+    """Function can be used to delete jsons containing no information(after exporting annotations in Qupath)"""
+    delteted_files = 0
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+
+        # Check if the file is a JSON file and its size is 3 bytes or less
+        if filename.endswith('.json') and os.path.getsize(file_path) <= 3:
+            print(f"Deleting {file_path}...")
+            os.remove(file_path)
+            delteted_files =+1
+            print(f"{filename} deleted.")
+    print("total files deleated" + str(delteted_files))
+
