@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, auc
 import torch
 import torchvision
-from torchvision import transforms, models
+from torchvision import transforms
 from pathlib import Path
 from PIL import Image
 from config import config_hyperparameter as cfg_hp

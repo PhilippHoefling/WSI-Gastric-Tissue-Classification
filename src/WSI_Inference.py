@@ -1,22 +1,16 @@
-from PIL import Image
+
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from pathlib import Path
 import torch
 from torchvision import transforms
-
 from config import config_hyperparameter as cfg_hp
-import torch.nn as nn
-import torch.optim as optim
 from auxiliaries import get_model
-import math
-from Tile_inference import plot_prob_distribution
 import csv
 import ast
 
 # workaround for Openslide import
-OPENSLIDE_PATH = r'C:\Users\phili\OpenSlide\openslide-win64-20230414\bin'
+OPENSLIDE_PATH = r'INSERT PATH TO OPENSLIDE HERE'
 import os
 
 if hasattr(os, 'add_dll_directory'):
@@ -81,7 +75,7 @@ def WSI_Test_Pipeline(model_folder: str, slidepath: str):
     # Visualize Results in a Heatmap
     SlideHeatmap(heatmap_data=predictions)
 
-def TestOnWSISlideFolder(model_folder_inf, model_folder_tissue, testfolder):
+def TestOnWSISlideFolderInflamed(model_folder_inf):
     # Path to groundtrouth CSV file
     csv_file_path = 'WSI_Path_Inflamed.csv'
     # Initialize an empty dictionary to store your data
@@ -194,7 +188,7 @@ def TestOnWSISlideFolder(model_folder_inf, model_folder_tissue, testfolder):
     PlottissueDistribution(tissueratio=inflammation_ratios, model_folder=model_folder_inf)
 
 
-def TestOnWSISlideFolderTissue(model_folder_inf, model_folder_tissue):
+def TestOnWSISlideFolderTissue(model_folder_tissue):
     # Path to groundtrouth CSV file
     csv_file_path = 'WSI_Path_Tissue_noIntermediate.csv'
     # Initialize an empty dictionary to store your data
@@ -310,7 +304,9 @@ def find_slide_path(base_path, slide_name):
         if slide_name in files:
             return os.path.join(root, slide_name)
     return None
-def TestOnWSISlideFolderMajorityVote(model_folder_inf, model_folder_tissue, testfolder):
+def TestOnWSISlideFolderMajorityVote(model_folder_inf):
+    '''Majority Vote Slide Aggregation function, which was tested in the masterthesis
+        Did perform worse than the probablisitic aggeregation threshold function'''
     # Path to groundtrouth CSV file
     csv_file_path = 'WSI_Path_Inflamed.csv'
     # Initialize an empty dictionary to store your data
@@ -428,116 +424,6 @@ def TestOnWSISlideFolderMajorityVote(model_folder_inf, model_folder_tissue, test
             inflammation_ratios.append([slidename, SlideDict['test'][slidename][0] ,'inflamed'])
     print(inflammation_ratios)
     #PlotInflammedDistribution(inflammationratio=inflammation_ratios, model_folder=model_folder_inf)
-def TestOnSlides(model_folder_inf: str, model_folder_tissue: str):
-    # load classes
-    class_names = cfg_hp["class_names"]
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    # get model and parameters
-    trained_inf_model, model_results, dict_hyperparameters, summary = get_model(model_folder_inf)
-    trained_tissue_model, model_results, dict_hyperparameters, summary = get_model(model_folder_tissue)
-
-    manual_transforms = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Resize((224, 224)),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
-    trained_inf_model.to(device)
-    trained_tissue_model.to(device)
-    # Turn on model evaluation mode and inference mode
-    trained_inf_model.eval()
-    trained_tissue_model.eval()
-
-    #array for predictions
-    inflammation_ratios = []
-    tissue_ratios = []
-
-
-    TestSlides =   {
-        '25HE': ['non-inflamed',['corpus']],
-        '15BHE': ['inflamed',['antrum','corpus']],
-        '36CHE': ['inflamed',['antrum','corpus']],
-        '6HE': ['non-inflamed',['corpus']],
-        '2CHE': ['inflamed',['antrum','corpus']],
-        '77HE': ['non-inflamed',['corpus']],
-        '3CHE': ['inflamed',['antrum','corpus']],
-        '40BHE': ['inflamed',['antrum','corpus']],
-        '15CHE': ['inflamed',['antrum']],
-        '29HE': ['non-inflamed',['corpus']],
-        '51HE': ['non-inflamed',['corpus']],
-        '35HE': ['non-inflamed',['corpus','intermediate']],
-        '66HE': ['non-inflamed',['antrum','corpus']],
-        '47BHE': ['inflamed',['antrum','corpus']],
-        '19CHE': ['inflamed',['antrum','corpus']],
-        '20BHE': ['inflamed',['antrum']],
-        #'18HE': ['non-inflamed',['corpus','intermediate']],
-        #'22BHE': ['inflamed',['corpus']],
-        #'23CHE': ['inflamed',['antrum','corpus']]
-    }
-    for slidename in TestSlides:
-
-        # open slide with openslide
-        path = "/mnt/thempel/scans/" + str(TestSlides[slidename][0]) + "/" +str(slidename) + ".mrxs"
-        slide = openslide.open_slide(path)
-
-        tiles = deepzoom.DeepZoomGenerator(slide, tile_size=224, overlap=112, limit_bounds=False)
-
-        col, rows = tiles.level_tiles[15]
-        predictions_inf = np.empty([rows, col])
-        predictions_tissue= np.empty([rows, col])
-
-        for c in range(col):
-            for r in range(rows):
-                single_tile = tiles.get_tile(15, (c, r))
-
-                # Sample usage
-                np_tile = np.array(single_tile)
-
-                # Pink lower bound in HSV
-                lower_bound = np.array([135, 40, 40])
-                # Purple upper bound in HSV
-                upper_bound = np.array([172, 255, 255])
-
-                if is_tile_of_interest(np_tile, lower_bound, upper_bound):
-                    with torch.inference_mode():
-                        # Add an extra dimension to the image
-                        single_tile = manual_transforms(single_tile).unsqueeze(dim=0)
-
-                        # Divide the image pixel values by 255 to get them between [0, 1]
-                        # target_image = single_tile / 255
-
-
-                        # Make a prediction on image with an extra dimension
-                        target_image_pred_inf = trained_inf_model(single_tile.cuda())
-                        target_image_pred_tissue =  trained_tissue_model(single_tile.cuda())
-
-                    target_image_pred_inf_probs = torch.sigmoid(target_image_pred_inf)
-                    target_image_pred_tissue_probs = torch.sigmoid(target_image_pred_tissue)
-
-                    predictions_inf[r][c] = target_image_pred_inf_probs.tolist()[0][0]
-                    predictions_tissue[r][c] =target_image_pred_tissue_probs.tolist()[0][0]
-                else:
-                    predictions_inf[r][c] = -1
-                    predictions_tissue[r][c] = -1
-
-        #Evaluation of Inflamed Tiles
-        # Filter out -1 values and then count zeros and ones
-        valid_inf_predictions = predictions_inf[predictions_inf != -1]
-        valid_tissue_predictions = predictions_inf[predictions_tissue != -1]
-
-        inflammation_ratios.append([TestSlides[slidename][0] , np.mean(valid_inf_predictions)])
-        tissue_ratios.append([TestSlides[slidename][1] , np.mean(valid_tissue_predictions)])
-
-        # Filter out -1 values and then count zeros and ones
-
-
-
-
-    print(inflammation_ratios)
-    PlotInflammedDistribution(inflammationratio=inflammation_ratios, model_folder=model_folder_inf)
-
-    print( tissue_ratios)
-    PlottissueDistribution(tissueratio= tissue_ratios, model_folder=model_folder_tissue)
-    #Show distribution with classes
 
 def PlotInflammedDistribution(inflammationratio: np.array, model_folder):
     # Separate the probabilities

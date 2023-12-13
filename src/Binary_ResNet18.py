@@ -1,4 +1,3 @@
-import os
 
 from config import config_hyperparameter as cfg_hp
 import torch
@@ -9,9 +8,9 @@ from timeit import default_timer as timer
 from datetime import datetime
 from tqdm.auto import tqdm
 import time
-# import skimage
+
 from typing import Dict, List, Tuple
-#from sklearn.model_selection import train
+
 import torchvision
 from torch import nn
 from auxiliaries import store_model

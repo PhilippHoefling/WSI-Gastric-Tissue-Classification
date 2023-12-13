@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.metrics import (ConfusionMatrixDisplay, precision_score, f1_score, recall_score,
                              roc_curve, auc, accuracy_score, confusion_matrix, cohen_kappa_score)
 from sklearn.preprocessing import label_binarize
-import numpy as np
+
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import ConfusionMatrixDisplay, precision_score, f1_score, recall_score, roc_curve, auc
