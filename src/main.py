@@ -12,16 +12,14 @@ from evaluaton_human_performance import evaluate_Experiment_Tiles, AI_Tile_predi
 
 if __name__ == "__main__":
     # Define dataset paths
-    dataset_Tissue_path = 'data/TissueTiles512'
     dataset_final_Tissue = 'data/TissueTilesReworked'
-    dataset_Inflammed_path = 'data/InflamedTiles'
     dataset_Inf_tom_path = 'data/InflamedTilesReworked'
 
-    model_folder_inf = "models/TransferLearning_model_05122023_0418"
-    model_folder_tissue = "models/TransferLearning_model_09122023_1539"
+    model_folder_inf = "models/Final_Inflammed_Model"
+    model_folder_tissue = "models/Final_Tissue_Model"
 
     tf_model ="imagenet"
-    single_image_path = 'data/InflamedTiles/test/inflamed/7CHE d-5_x-58735_y-137940_w-2560_h-2560_inflamed.png'
+    single_image_path = 'data/InflamedTilesReworked/test/inflamed/10CHE d-5_x-58735_y-137940_w-2560_h-2560_inflamed.png'
     test_slidepath = 'E:/Scans/Non-Inflamed/56HE.mrxs'
 
 
