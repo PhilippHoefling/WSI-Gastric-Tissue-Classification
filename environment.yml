@@ -26,6 +26,9 @@ dependencies:
   - tqdm
   - ipywidgets
   - spacy=2.3.5
+  - pandas
+  - seaborn
+  - opencv-python
   - pip
   - pytorch
   - scikit-image
