@@ -7,9 +7,13 @@ The dataset and the final models are hosted at the the Otto-Friedrich University
 The datasets located at the university chair's file server. Please contact the repository owner or the university chair for access to the server and further instructions on how to access the datasets and the project files.
 
 # Usage
-All methods and pipelines are accessed via [main.py](src/main.py), please replace all variables to datsets and anntotaions accordingly to your setup
+All methods and pipelines are accessed via [main.py](src/main.py). Ensure to replace all variables related to datasets and annotations according to your specific setup. 
 The hyperparameters and class names for testing are controled via [config.py](src/config.py).
 
-#Technical Overview
-All used libaries are contained in environment.yaml.
-Pytorch for model training and inference, skikit learn for metrices, Openslide for access to WSI others numpy, pandas, matplot lib, cv2, seaborn, cv2
+# Technical Overview
+The repository includes an [environment.yaml](environment.yaml) file containing all the necessary libraries. Key libraries used in this project include:
+
+- Pytorch: For model training and inference.
+- Scikit-learn: For metrics calculation.
+- OpenSlide: For accessing WSIs.
+- Other Libraries: numpy, pandas, matplotlib, cv2, seaborn.
