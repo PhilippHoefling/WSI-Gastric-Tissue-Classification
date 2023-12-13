@@ -1,8 +1,9 @@
 # Overview
 This Repository contains the code of the master thesis of Philipp Höfling with the titel "Development of an AI-based algorithm for the classification of gastric tissue in computational pathology". 
-Central to this repository is the training pipeline for ResNet18 models and a evaluation pipeline for trained models on Whole Slide Images (WSI).
+Central to this repository is a specifically tailored for gastric mucuso training pipeline for ResNet18 models.
+As viusalized below the WSI test pipeline allows trained ResNet18s to classify WSIs and output a prelimnary diagnosis and a heatmap of the tissue.
+![PipelineResult](https://github.com/PhilippHoefling/WSI-Gastric-Tissue-Classification/assets/40239939/19b6c188-6f6f-4319-a1a3-65a57409be17)
 The dataset and the final models are hosted at the the Otto-Friedrich University Bamberg's chair of Explainable Machine Learning.
-
 # Data
 The datasets located at the university chair's file server. Please contact the repository owner or the university chair for access to the server and further instructions on how to access the datasets and the project files.
 
