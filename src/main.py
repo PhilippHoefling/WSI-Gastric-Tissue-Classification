@@ -29,10 +29,13 @@ if __name__ == "__main__":
     get_WSI_train_Data = False
 
     # train a new model
+    #change the augmentation methods according to your training problem in Binary_ResNet18.py
+    #change the hyperparameters in config.py according to your setup
     train_gastric_model = False
     train_inf_model = False
 
     #Test existing models on Tile Level
+    #change the class names accoring to your problem in config.py beforehand
     test_Tissue_Model = False
     test_Inf_Model = True
     prediction_on_image = False
