@@ -46,8 +46,9 @@ This project uses a Conda environment to manage dependencies. To set up the envi
    
 # Usage
 All methods and pipelines are accessed via [main.py](src/main.py). 
+Here a short explanation on the methods is given.
 Ensure to replace all variables related to datasets, models and annotations according to your specific setup. 
-The hyperparameters and class names for testing are controled via [config.py](src/config.py).
+The hyperparameters for training and class names for testing are controled via [config.py](src/config.py).
   
 # Contribution
 Contributions to this repository are welcome. If you are interested in improving the pipelines or experimenting with the pipelines, please fork the repository.
