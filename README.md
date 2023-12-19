@@ -8,6 +8,18 @@ The dataset and the final models are hosted at the the [Otto-Friedrich Universit
 The datasets located at the university chair's file server. Please contact the university chair for access to the datasets and the project files.
 
 # Usage
+
+To begin working with this project, you need to clone the repository to your local machine. Use the following command in your terminal:
+
+```bash
+git clone https://github.com/PhilippHoefling/WSI-Gastric-Tissue-Classification.git
+```
+Once cloned, navigate to the project directory:
+
+```bash
+cd WSI-Gastric-Tissue-Classification
+```
+
 All methods and pipelines are accessed via [main.py](src/main.py). Ensure to replace all variables related to datasets, models and annotations according to your specific setup. 
 The hyperparameters and class names for testing are controled via [config.py](src/config.py).
 
