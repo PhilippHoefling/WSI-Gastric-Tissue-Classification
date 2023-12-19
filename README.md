@@ -8,7 +8,7 @@ The dataset and the final models are hosted at the the Otto-Friedrich University
 The datasets located at the university chair's file server. Please contact the university chair for access to the datasets and the project files.
 
 # Usage
-All methods and pipelines are accessed via [main.py](src/main.py). Ensure to replace all variables related to datasets and annotations according to your specific setup. 
+All methods and pipelines are accessed via [main.py](src/main.py). Ensure to replace all variables related to datasets, models and annotations according to your specific setup. 
 The hyperparameters and class names for testing are controled via [config.py](src/config.py).
 
 # Technical Overview
@@ -18,6 +18,9 @@ The repository includes an [environment.yaml](environment.yaml) file containing 
 - Scikit-learn: For metrics calculation.
 - OpenSlide: For accessing WSIs.
 - Other Libraries: numpy, pandas, matplotlib, cv2, seaborn.
+  
+# Contribution
+Contributions to this repository are welcome. If you are interested in improving the models or experimenting with the pipelines, please fork the repository and submit your pull requests.
 
 # License
 This project is licensed under the terms of the MIT license. For more details, see [License](LICENSE)
