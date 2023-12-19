@@ -7,22 +7,6 @@ The dataset and the final models are hosted at the the [Otto-Friedrich Universit
 # Data
 The datasets located at the university chair's file server. Please contact the university chair for access to the datasets and the project files.
 
-# Usage
-
-To begin working with this project, you need to clone the repository to your local machine. Use the following command in your terminal:
-
-```bash
-git clone https://github.com/PhilippHoefling/WSI-Gastric-Tissue-Classification.git
-```
-Once cloned, navigate to the project directory:
-
-```bash
-cd WSI-Gastric-Tissue-Classification
-```
-
-All methods and pipelines are accessed via [main.py](src/main.py). Ensure to replace all variables related to datasets, models and annotations according to your specific setup. 
-The hyperparameters and class names for testing are controled via [config.py](src/config.py).
-
 # Technical Overview
 The repository includes an [environment.yaml](environment.yaml) file containing all the necessary libraries. Key libraries used in this project include:
 
@@ -30,9 +14,43 @@ The repository includes an [environment.yaml](environment.yaml) file containing 
 - Scikit-learn: For metrics calculation.
 - OpenSlide: For accessing WSIs.
 - Other Libraries: numpy, pandas, matplotlib, cv2, seaborn.
+
+# Environment Setup
+
+This project uses a Conda environment to manage dependencies. To set up the environment, follow these steps:
+
+1. **Install Conda**: If you don't have Conda installed, download and install [Anaconda](https://www.anaconda.com/products/individual) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
+
+2. **Clone the Repository**: If you haven't already, clone the repository to your local machine:
+    ```bash
+    git clone https://github.com/PhilippHoefling/WSI-Gastric-Tissue-Classification.git
+    ```
+
+3. **Navigate to the Project Directory**: Change to the project directory in your terminal:
+    ```bash
+    cd WSI-Gastric-Tissue-Classification
+    ```
+
+4. **Create the Conda Environment**: Use the `environment.yml` file to create a new Conda environment. Run the following command:
+    ```bash
+    conda env create -f environment.yml
+    ```
+
+5. **Activate the Environment**: Once the environment is created, activate it with:
+    ```bash
+    conda activate DigPat
+    ```
+
+6. **Verify the Environment**: Ensure that all the dependencies are correctly installed.
+
+   
+# Usage
+All methods and pipelines are accessed via [main.py](src/main.py). 
+Ensure to replace all variables related to datasets, models and annotations according to your specific setup. 
+The hyperparameters and class names for testing are controled via [config.py](src/config.py).
   
 # Contribution
-Contributions to this repository are welcome. If you are interested in improving the models or experimenting with the pipelines, please fork the repository and submit your pull requests.
+Contributions to this repository are welcome. If you are interested in improving the pipelines or experimenting with the pipelines, please fork the repository.
 
 # License
 This project is licensed under the terms of the MIT license. For more details, see [License](LICENSE)
