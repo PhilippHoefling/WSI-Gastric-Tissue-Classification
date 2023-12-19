@@ -3,7 +3,7 @@ This Repository contains the code of the master thesis of Philipp Höfling, writ
 This repository features prototype training pipelines, specifically designed for ResNet18 models, focusing on gastric mucosa classification.
 The illustrated WSI test pipeline, developed in this work, enables trained ResNet18 models to classify whole slide images (WSIs), providing preliminary diagnoses and tissue heatmaps.
 ![PipelineResult](https://github.com/PhilippHoefling/WSI-Gastric-Tissue-Classification/assets/40239939/19b6c188-6f6f-4319-a1a3-65a57409be17)
-The dataset and the final models are hosted at the the Otto-Friedrich University Bamberg's chair of Explainable Machine Learning.
+The dataset and the final models are hosted at the the [Otto-Friedrich University Bamberg's chair of Explainable Machine Learning](https://www.uni-bamberg.de/xai/).
 # Data
 The datasets located at the university chair's file server. Please contact the university chair for access to the datasets and the project files.
 
